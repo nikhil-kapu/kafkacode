@@ -10,6 +10,16 @@ class AnalysisEngine {
         this.llmAnalyzer.verbose = verbose;
     }
 
+    /** Force pattern-only scanning, even if an API key is configured. */
+    disableAi() {
+        this.llmAnalyzer.disabled = true;
+    }
+
+    /** Whether AI-powered analysis will run for this scan. */
+    aiEnabled() {
+        return this.llmAnalyzer.isEnabled();
+    }
+
     async analyzeFile(filePath) {
         if (this.verbose) {
             console.log(`Analyzing: ${filePath}`);

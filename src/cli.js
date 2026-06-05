@@ -20,6 +20,7 @@ program
     .argument('<directory>', 'Path to the source code directory to scan')
     .option('-v, --verbose', 'Print verbose progress updates during the scan')
     .option('-b, --badge', 'Print a copy-paste privacy-grade badge for your README')
+    .option('--no-ai', 'Disable AI-powered analysis (run pattern scan only)')
     .action(async (directory, options) => {
         await runScan(directory, options);
     });
@@ -41,6 +42,9 @@ async function runScan(directory, options = {}) {
         // Initialize components
         const fileScanner = new FileScanner(directory);
         const analysisEngine = new AnalysisEngine(verbose);
+        if (options.ai === false) {
+            analysisEngine.disableAi();
+        }
         const reportGenerator = new ReportGenerator();
 
         // Scan for files
@@ -67,6 +71,11 @@ async function runScan(directory, options = {}) {
         // Generate and display report
         const report = reportGenerator.generateReport(directory, findings, files.length);
         console.log(report);
+
+        // Hint that AI analysis is available when it wasn't used.
+        if (options.ai !== false && !analysisEngine.aiEnabled()) {
+            console.log('💡 Tip: set KAFKACODE_API_KEY to enable AI-powered contextual analysis. See the README.\n');
+        }
 
         // Optionally print a copy-paste privacy-grade badge for the user's README
         if (options.badge) {

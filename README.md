@@ -158,6 +158,27 @@ npx kafkacode scan ./src
 Pattern-based detection runs entirely on your machine with no network calls. The
 optional AI layer adds contextual findings for the cases static rules can't catch.
 
+## 🤖 AI mode (optional, bring-your-own-key)
+
+Pattern scanning works out of the box with **no setup and no network calls**. To add
+AI-powered contextual findings, bring your own API key — KafkaCode calls an
+OpenAI-compatible chat API directly, defaulting to [Groq](https://console.groq.com/keys)
+(which has a free tier):
+
+```bash
+export KAFKACODE_API_KEY=your_key_here
+kafkacode scan ./src
+```
+
+| Variable | Default | Purpose |
+| -------- | ------- | ------- |
+| `KAFKACODE_API_KEY` | _(unset)_ | Your provider API key — **enables AI mode** |
+| `KAFKACODE_API_URL` | `https://api.groq.com/openai/v1` | OpenAI-compatible base URL (Groq, OpenAI, OpenRouter, local models…) |
+| `KAFKACODE_MODEL`   | `llama-3.1-8b-instant` | Model name |
+
+Without a key, KafkaCode runs **pattern-only and never sends your code anywhere**.
+Pass `--no-ai` to force pattern-only even when a key is set.
+
 ## 🆚 How it compares
 
 |                              | KafkaCode | gitleaks / trufflehog | semgrep |
@@ -173,7 +194,7 @@ deep secret scanners rather than replacing them.
 
 ## 🗺️ Roadmap
 
-- [ ] Bring-your-own-key / local-model AI (no hosted backend required)
+- [x] **Bring-your-own-key AI** — call Groq / OpenAI-compatible providers directly
 - [ ] `--json` and **SARIF** output (GitHub Security tab integration)
 - [ ] Config file &amp; `.kafkacodeignore`
 - [ ] Baseline file to adopt on existing codebases

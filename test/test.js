@@ -72,4 +72,21 @@ try {
     process.exit(1);
 }
 
+// Test 5: AI analysis is opt-in — disabled when no key/backend is configured
+try {
+    delete process.env.KAFKACODE_API_KEY;
+    delete process.env.KAFKACODE_BACKEND_ENDPOINT;
+    const LLMAnalyzer = require('../src/LLMAnalyzer');
+    const analyzer = new LLMAnalyzer();
+    if (analyzer.isEnabled() === false) {
+        console.log('✅ Test 5: AI is disabled without an API key');
+    } else {
+        console.log('❌ Test 5: AI should be disabled without a key');
+        process.exit(1);
+    }
+} catch (error) {
+    console.log('❌ Test 5: AI gating test failed:', error.message);
+    process.exit(1);
+}
+
 console.log('\n🎉 All tests passed!');

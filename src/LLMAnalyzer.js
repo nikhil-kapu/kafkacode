@@ -1,14 +1,39 @@
 const https = require('https');
 
+/**
+ * LLMAnalyzer performs optional AI-powered contextual analysis.
+ *
+ * It is "bring your own key": the user supplies an API key and KafkaCode calls
+ * an OpenAI-compatible chat-completions endpoint directly (defaulting to Groq).
+ * When no key (and no self-hosted backend) is configured, AI analysis is simply
+ * skipped — pattern-based scanning still runs, and no code leaves the machine.
+ */
 class LLMAnalyzer {
     constructor() {
-        this.backendEndpoint = process.env.KAFKACODE_BACKEND_ENDPOINT || 'https://adorable-motivation-production.up.railway.app';
+        // Bring-your-own-key: direct, OpenAI-compatible provider call.
+        this.apiKey = process.env.KAFKACODE_API_KEY || '';
+        this.apiUrl = process.env.KAFKACODE_API_URL || 'https://api.groq.com/openai/v1';
+        this.model = process.env.KAFKACODE_MODEL || 'llama-3.1-8b-instant';
+
+        // Advanced: a self-hosted backend exposing POST /api/analyze. If set,
+        // it takes precedence over a direct provider call.
+        this.backendEndpoint = process.env.KAFKACODE_BACKEND_ENDPOINT || '';
+
+        // Delay between snippet requests, to stay within free-tier rate limits.
+        this.rateLimitMs = parseInt(process.env.KAFKACODE_RATE_LIMIT_MS || '250', 10);
+
+        this.disabled = false;
         this.verbose = false;
         this.interestKeywords = new Set([
             'api', 'db', 'database', 'user', 'password', 'save', 'fetch', 'send', 'log',
             'auth', 'token', 'key', 'secret', 'credential', 'email', 'phone', 'address',
             'personal', 'sensitive', 'private', 'encrypt', 'decrypt', 'hash'
         ]);
+    }
+
+    /** AI analysis is available only when a key or a backend endpoint is configured. */
+    isEnabled() {
+        return !this.disabled && Boolean(this.apiKey || this.backendEndpoint);
     }
 
     _createSnippetPrompt(codeSnippet, filePath, startLine) {
@@ -67,7 +92,6 @@ ${codeSnippet}`;
         const mergedRanges = [];
         for (const [start, end] of ranges) {
             if (mergedRanges.length > 0 && start <= mergedRanges[mergedRanges.length - 1][1] + 10) {
-                // Extend previous range
                 const lastRange = mergedRanges[mergedRanges.length - 1];
                 mergedRanges[mergedRanges.length - 1] = [lastRange[0], Math.max(lastRange[1], end)];
             } else {
@@ -78,27 +102,50 @@ ${codeSnippet}`;
         return mergedRanges;
     }
 
-    async callGrokApi(codeSnippet, filePath, startLine) {
-        try {
-            return await this._callBackendApi(codeSnippet, filePath, startLine);
-        } catch (error) {
-            if (this.verbose) {
-                console.log(`    ❌ LLM call failed, using mock: ${error.message}`);
-            }
-            return this._mockSnippetResponse(codeSnippet, filePath, startLine);
+    /** Route a snippet to either the self-hosted backend or the direct provider. */
+    async _analyzeSnippet(codeSnippet, filePath, startLine) {
+        if (this.backendEndpoint) {
+            return this._callBackendApi(codeSnippet, filePath, startLine);
         }
+        return this._callProviderApi(codeSnippet, filePath, startLine);
     }
 
-    async _callBackendApi(codeSnippet, filePath, startLine) {
+    /** Call an OpenAI-compatible chat-completions endpoint directly (BYOK). */
+    async _callProviderApi(codeSnippet, filePath, startLine) {
+        const prompt = this._createSnippetPrompt(codeSnippet, filePath, startLine);
         const payload = JSON.stringify({
-            codeSnippet,
-            filePath,
-            startLine
+            model: this.model,
+            messages: [{ role: 'user', content: prompt }],
+            temperature: 0,
+            max_tokens: 800
         });
 
-        const url = new URL(this.backendEndpoint);
-        url.pathname = '/api/analyze';
+        const base = this.apiUrl.replace(/\/+$/, '');
+        const url = new URL(`${base}/chat/completions`);
+        const options = {
+            hostname: url.hostname,
+            port: url.port || 443,
+            path: url.pathname + url.search,
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${this.apiKey}`,
+                'Content-Length': Buffer.byteLength(payload)
+            },
+            timeout: 20000
+        };
 
+        const raw = await this._request(options, payload);
+        const result = JSON.parse(raw);
+        const content = result.choices && result.choices[0] && result.choices[0].message.content;
+        return this._parseVulnerabilities(content || '');
+    }
+
+    /** Call a self-hosted KafkaCode backend (POST /api/analyze). */
+    async _callBackendApi(codeSnippet, filePath, startLine) {
+        const payload = JSON.stringify({ codeSnippet, filePath, startLine });
+        const base = this.backendEndpoint.replace(/\/+$/, '');
+        const url = new URL(`${base}/api/analyze`);
         const options = {
             hostname: url.hostname,
             port: url.port || 443,
@@ -108,68 +155,57 @@ ${codeSnippet}`;
                 'Content-Type': 'application/json',
                 'Content-Length': Buffer.byteLength(payload)
             },
-            timeout: 12000 // 12 second timeout for CLI request
+            timeout: 20000
         };
 
+        const raw = await this._request(options, payload);
+        const result = JSON.parse(raw);
+        const content = result.data && result.data.choices && result.data.choices[0].message.content;
+        return this._parseVulnerabilities(content || '');
+    }
+
+    /** Parse the model's text response into a vulnerabilities array, defensively. */
+    _parseVulnerabilities(content) {
+        try {
+            const parsed = JSON.parse(content);
+            return Array.isArray(parsed.vulnerabilities) ? parsed.vulnerabilities : [];
+        } catch (err) {
+            // Some models wrap JSON in prose or fences — extract the JSON object.
+            const start = content.indexOf('{');
+            const end = content.lastIndexOf('}') + 1;
+            if (start !== -1 && end > start) {
+                try {
+                    const parsed = JSON.parse(content.substring(start, end));
+                    return Array.isArray(parsed.vulnerabilities) ? parsed.vulnerabilities : [];
+                } catch (_) {
+                    return [];
+                }
+            }
+            return [];
+        }
+    }
+
+    /** Promise wrapper around https.request with status + timeout handling. */
+    _request(options, payload) {
         return new Promise((resolve, reject) => {
             const req = https.request(options, (res) => {
                 let data = '';
-
-                res.on('data', (chunk) => {
-                    data += chunk;
-                });
-
+                res.on('data', (chunk) => { data += chunk; });
                 res.on('end', () => {
-                    try {
-                        if (res.statusCode === 429) {
-                            const errorData = JSON.parse(data);
-                            throw new Error(`Rate limit exceeded: ${errorData.message}`);
-                        }
-
-                        if (res.statusCode !== 200) {
-                            throw new Error(`HTTP ${res.statusCode}: ${data}`);
-                        }
-
-                        const result = JSON.parse(data);
-                        const content = result.data.choices[0].message.content;
-
-                        try {
-                            const parsedResponse = JSON.parse(content);
-                            if (this.verbose) {
-                                console.log(`    ✅ LLM returned ${parsedResponse.vulnerabilities?.length || 0} vulnerabilities`);
-                                if (result.rateLimitRemaining !== undefined) {
-                                    console.log(`    📊 Rate limit remaining: ${result.rateLimitRemaining}`);
-                                }
-                            }
-                            parsedResponse.__source = 'llm';
-                            resolve(parsedResponse);
-                        } catch (jsonError) {
-                            const jsonStart = content.indexOf('{');
-                            const jsonEnd = content.lastIndexOf('}') + 1;
-                            if (jsonStart !== -1 && jsonEnd > jsonStart) {
-                                const parsed = JSON.parse(content.substring(jsonStart, jsonEnd));
-                                if (this.verbose) {
-                                    console.log(`    ✅ LLM returned ${parsed.vulnerabilities?.length || 0} vulnerabilities (extracted JSON)`);
-                                }
-                                parsed.__source = 'llm';
-                                resolve(parsed);
-                            } else {
-                                resolve({ vulnerabilities: [] });
-                            }
-                        }
-                    } catch (error) {
-                        reject(error);
+                    if (res.statusCode === 429) {
+                        return reject(new Error('Rate limit exceeded (HTTP 429)'));
                     }
+                    if (res.statusCode < 200 || res.statusCode >= 300) {
+                        return reject(new Error(`HTTP ${res.statusCode}: ${data.slice(0, 200)}`));
+                    }
+                    resolve(data);
                 });
             });
 
-            req.on('error', (error) => {
-                reject(error);
-            });
-
+            req.on('error', reject);
             req.on('timeout', () => {
                 req.destroy();
-                reject(new Error('Backend API request timeout'));
+                reject(new Error('LLM request timed out'));
             });
 
             req.write(payload);
@@ -177,86 +213,55 @@ ${codeSnippet}`;
         });
     }
 
-
-    _mockSnippetResponse(codeSnippet, filePath, startLine) {
-        const vulnerabilities = [];
-        const lines = codeSnippet.split('\n');
-
-        // Simple heuristic-based mock analysis
-        for (let i = 0; i < lines.length; i++) {
-            const line = lines[i];
-            const lineLower = line.toLowerCase();
-            const actualLineNum = startLine + i;
-
-            // Look for logging of potentially sensitive data
-            if (lineLower.includes('log') && ['email', 'user', 'password', 'token'].some(term => lineLower.includes(term))) {
-                vulnerabilities.push({
-                    line_number: actualLineNum,
-                    severity: 'Medium',
-                    description: 'Potential logging of sensitive user data detected.',
-                    suggestion: 'Consider logging only non-sensitive identifiers or hashing sensitive data before logging.'
-                });
-            }
-
-            // Look for insecure data transmission
-            if (lineLower.includes('http://') && ['api', 'send', 'post', 'request'].some(term => lineLower.includes(term))) {
-                vulnerabilities.push({
-                    line_number: actualLineNum,
-                    severity: 'High',
-                    description: 'Insecure HTTP transmission of potentially sensitive data.',
-                    suggestion: 'Use HTTPS instead of HTTP for all data transmission.'
-                });
-            }
+    async analyzeFile(filePath, content, patternFindings = []) {
+        // AI analysis is opt-in: with no key/backend configured, skip entirely.
+        if (!this.isEnabled()) {
+            return [];
         }
 
-        return { vulnerabilities, __source: 'mock' };
-    }
-
-    async analyzeFile(filePath, content, patternFindings = []) {
         const lines = content.split('\n');
         const areasOfInterest = this._identifyAreasOfInterest(content, patternFindings);
         const findings = [];
 
         if (this.verbose && areasOfInterest.length > 0) {
-            console.log(`  Found ${areasOfInterest.length} areas of interest for LLM analysis`);
+            console.log(`  Found ${areasOfInterest.length} areas of interest for AI analysis`);
         }
 
-        // Analyze each area of interest
         for (const [startLine, endLine] of areasOfInterest) {
-            // Extract snippet
-            const snippetLines = lines.slice(startLine - 1, endLine);
-            const snippet = snippetLines.join('\n');
+            const snippet = lines.slice(startLine - 1, endLine).join('\n');
 
             // Skip very small snippets
             if (snippet.trim().length < 50) {
                 continue;
             }
 
+            let vulnerabilities;
             try {
-                // Call API with rate limiting
-                const grokResponse = await this.callGrokApi(snippet, filePath, startLine);
-
-                // Add delay to prevent rate limiting from free tier
-                await new Promise(resolve => setTimeout(resolve, 1000));
-
-                // Process findings
-                for (const vuln of grokResponse.vulnerabilities || []) {
-                    const finding = {
-                        file_path: filePath,
-                        line_number: vuln.line_number || startLine,
-                        severity: vuln.severity || 'Medium',
-                        finding_type: 'Context-Based Issue',
-                        description: vuln.description || 'Privacy vulnerability detected',
-                        code_snippet: this._getCodeSnippet(content, vuln.line_number || startLine),
-                        suggestion: vuln.suggestion || 'Review and address the identified issue.',
-                        source: grokResponse.__source || 'unknown'
-                    };
-                    findings.push(finding);
-                }
-
+                vulnerabilities = await this._analyzeSnippet(snippet, filePath, startLine);
             } catch (error) {
-                // Continue with other snippets if one fails
+                // Skip this snippet on error — never fabricate findings.
+                if (this.verbose) {
+                    console.log(`    ⚠️  AI analysis skipped for ${filePath}:${startLine} — ${error.message}`);
+                }
                 continue;
+            }
+
+            for (const vuln of vulnerabilities) {
+                findings.push({
+                    file_path: filePath,
+                    line_number: vuln.line_number || startLine,
+                    severity: vuln.severity || 'Medium',
+                    finding_type: 'Context-Based Issue',
+                    description: vuln.description || 'Privacy vulnerability detected',
+                    code_snippet: this._getCodeSnippet(content, vuln.line_number || startLine),
+                    suggestion: vuln.suggestion || 'Review and address the identified issue.',
+                    source: 'llm'
+                });
+            }
+
+            // Gentle pacing to respect provider rate limits.
+            if (this.rateLimitMs > 0) {
+                await new Promise(resolve => setTimeout(resolve, this.rateLimitMs));
             }
         }
 
