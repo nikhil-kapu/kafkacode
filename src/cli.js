@@ -37,6 +37,13 @@ async function runScan(directory, options = {}) {
         process.exit(1);
     }
 
+    // Validate the output format before doing any work
+    const format = (options.format || 'console').toLowerCase();
+    if (!['console', 'json', 'sarif'].includes(format)) {
+        console.error(`Error: unknown --format '${options.format}'. Use 'console', 'json', or 'sarif'.`);
+        process.exit(1);
+    }
+
     if (verbose) {
         console.log('🚀 Starting KafkaCode privacy scan...');
     }
@@ -71,18 +78,14 @@ async function runScan(directory, options = {}) {
         }
         const findings = await analysisEngine.analyzeFiles(files);
 
-        // Render the findings in the requested format
-        const format = (options.format || 'console').toLowerCase();
+        // Render the findings in the requested format (validated above)
         let output;
         if (format === 'json') {
             output = reportGenerator.generateJson(directory, findings, files.length);
         } else if (format === 'sarif') {
             output = reportGenerator.generateSarif(findings);
-        } else if (format === 'console') {
-            output = reportGenerator.generateReport(directory, findings, files.length);
         } else {
-            console.error(`Error: unknown --format '${options.format}'. Use 'console', 'json', or 'sarif'.`);
-            process.exit(1);
+            output = reportGenerator.generateReport(directory, findings, files.length);
         }
 
         // Write to a file, or print to stdout

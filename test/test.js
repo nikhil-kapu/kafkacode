@@ -3,6 +3,10 @@
 const { execSync } = require('child_process');
 const PatternScanner = require('../src/PatternScanner');
 
+// Keep tests hermetic: never call a real AI provider, even if a key is set locally.
+delete process.env.KAFKACODE_API_KEY;
+delete process.env.KAFKACODE_BACKEND_ENDPOINT;
+
 console.log('🧪 Running KafkaCode tests...\n');
 
 // Test 1: CLI help command works
