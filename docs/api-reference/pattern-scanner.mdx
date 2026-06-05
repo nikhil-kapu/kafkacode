@@ -1,0 +1,163 @@
+---
+title: 'PatternScanner'
+description: 'API reference for the PatternScanner class'
+---
+
+## Overview
+
+The `PatternScanner` class performs regex-based pattern detection to identify hardcoded secrets, PII, and other privacy issues.
+
+## Constructor
+
+```javascript
+new PatternScanner()
+```
+
+**Example:**
+```javascript
+const PatternScanner = require('kafkacode/dist/PatternScanner');
+
+const scanner = new PatternScanner();
+```
+
+## Methods
+
+### scanContent(filePath, content)
+
+Scans file content for privacy issues using regex patterns.
+
+```javascript
+scanContent(filePath: string, content: string): Finding[]
+```
+
+**Parameters:**
+- `filePath` (string): Path to the file being scanned
+- `content` (string): File content to scan
+
+**Returns:** Array of Finding objects
+
+**Example:**
+```javascript
+const fs = require('fs');
+const PatternScanner = require('kafkacode/dist/PatternScanner');
+
+const scanner = new PatternScanner();
+const content = fs.readFileSync('./src/config.js', 'utf-8');
+const findings = scanner.scanContent('./src/config.js', content);
+
+console.log(`Found ${findings.length} pattern matches`);
+```
+
+## Detection Patterns
+
+The PatternScanner uses these regex patterns:
+
+<Tabs>
+  <Tab title="Critical Patterns">
+    ```javascript
+    // AWS Access Keys
+    /AKIA[0-9A-Z]{16}/g
+
+    // Private Keys
+    /-----BEGIN (RSA |EC )?PRIVATE KEY-----/g
+
+    // Stripe Keys
+    /sk_live_[0-9a-zA-Z]{24}/g
+    ```
+  </Tab>
+
+  <Tab title="High Severity">
+    ```javascript
+    // Generic API Keys
+    /api[_-]?key.*?[=:]\s*['""]([a-zA-Z0-9_\-]+)['""]$/gmi
+
+    // OAuth Tokens
+    /ghp_[a-zA-Z0-9]{36}/g  // GitHub
+    /glpat-[a-zA-Z0-9\-_]{20}/g  // GitLab
+    ```
+  </Tab>
+
+  <Tab title="Medium Severity">
+    ```javascript
+    // Email Addresses
+    /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g
+
+    // Phone Numbers
+    /\+?[1-9]\d{1,14}/g
+
+    // High Entropy Strings
+    // Calculated programmatically
+    ```
+  </Tab>
+
+  <Tab title="Low Severity">
+    ```javascript
+    // IP Addresses
+    /\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b/g
+
+    // URLs
+    /https?:\/\/[^\s]+/g
+    ```
+  </Tab>
+</Tabs>
+
+## Usage Examples
+
+### Basic Pattern Scanning
+
+```javascript
+const PatternScanner = require('kafkacode/dist/PatternScanner');
+
+const scanner = new PatternScanner();
+const code = `
+  const apiKey = "AKIAIOSFODNN7EXAMPLE";
+  const email = "admin@company.com";
+`;
+
+const findings = scanner.scanContent('test.js', code);
+
+findings.forEach(finding => {
+  console.log(`${finding.severity}: ${finding.description}`);
+});
+```
+
+### Custom Pattern Detection
+
+```javascript
+class CustomScanner extends PatternScanner {
+  constructor() {
+    super();
+
+    // Add custom patterns
+    this.patterns.customSecret = {
+      regex: /MY_SECRET_[A-Z0-9]{16}/g,
+      severity: 'critical',
+      type: 'Custom Secret',
+      recommendation: 'Move to environment variables'
+    };
+  }
+}
+
+const scanner = new CustomScanner();
+const findings = scanner.scanContent('file.js', content);
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card
+    title="LLMAnalyzer"
+    icon="brain"
+    href="/api-reference/llm-analyzer"
+  >
+    AI-powered contextual analysis
+  </Card>
+
+  <Card
+    title="Detection Methods"
+    icon="shield-check"
+    href="/concepts/detection-methods"
+  >
+    Learn about detection patterns
+  </Card>
+</CardGroup>

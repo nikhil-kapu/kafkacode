@@ -1,0 +1,322 @@
+---
+title: 'How It Works'
+description: 'Understanding the KafkaCode scanning engine'
+---
+
+## Overview
+
+KafkaCode uses a **dual-layer analysis approach** combining pattern-based detection with AI-powered contextual analysis to identify privacy and compliance issues in your source code.
+
+## Architecture
+
+<Steps>
+  <Step title="File Discovery">
+    The **FileScanner** component recursively scans your project directory, respecting `.gitignore` rules and excluding common directories like `node_modules`, `.git`, and `build`.
+
+    **Supported File Types:**
+    - Python (`.py`)
+    - JavaScript (`.js`)
+    - TypeScript (`.ts`)
+    - Java (`.java`)
+    - Go (`.go`)
+    - Ruby (`.rb`)
+    - PHP (`.php`)
+  </Step>
+
+  <Step title="Pattern-Based Analysis">
+    The **PatternScanner** performs regex-based detection for known privacy issues:
+
+    - Hardcoded secrets (AWS keys, API tokens)
+    - PII patterns (emails, phone numbers)
+    - Sensitive keywords in assignment contexts
+    - High entropy strings
+  </Step>
+
+  <Step title="AI-Powered Analysis">
+    The **LLMAnalyzer** uses advanced language models to:
+
+    - Understand code context
+    - Identify subtle privacy issues
+    - Reduce false positives
+    - Provide contextual recommendations
+  </Step>
+
+  <Step title="Report Generation">
+    The **ReportGenerator** compiles findings and produces:
+
+    - Privacy grade (A+ to F)
+    - Severity classification
+    - Line-by-line details
+    - Actionable recommendations
+  </Step>
+</Steps>
+
+## Dual-Layer Detection
+
+### Layer 1: Pattern-Based Detection
+
+Fast, deterministic scanning using regex patterns:
+
+```javascript
+// Example: AWS Access Key Detection
+const patterns = {
+  awsAccessKey: /AKIA[0-9A-Z]{16}/g,
+  privateKey: /-----BEGIN (RSA |EC )?PRIVATE KEY-----/,
+  stripeKey: /sk_live_[0-9a-zA-Z]{24}/
+};
+```
+
+**Advantages:**
+- ⚡ Very fast execution
+- 🎯 High precision for known patterns
+- 📊 Zero external dependencies
+
+**Limitations:**
+- May miss context-dependent issues
+- Can produce false positives
+- Limited to predefined patterns
+
+### Layer 2: AI-Powered Analysis
+
+Contextual analysis using LLM:
+
+```javascript
+// The LLM analyzes:
+const context = {
+  codeSnippet: fileContent,
+  patternFindings: previousFindings,
+  language: fileExtension
+};
+
+// Returns contextual insights
+const aiFindings = await llm.analyze(context);
+```
+
+**Advantages:**
+- 🧠 Understands code context
+- 🔍 Finds subtle privacy issues
+- ✨ Reduces false positives
+- 💡 Provides smart recommendations
+
+**How it works:**
+1. Takes code snippet and pattern findings
+2. Analyzes semantic meaning
+3. Identifies privacy concerns in context
+4. Suggests specific remediation steps
+
+## Severity Classification
+
+Issues are classified into four severity levels:
+
+<CardGroup cols={2}>
+  <Card title="Critical" icon="circle-exclamation" color="#dc2626">
+    **Score: 100 points**
+
+    - Exposed API keys
+    - Private keys
+    - Database credentials
+    - OAuth tokens
+
+    **Action:** Fix immediately
+  </Card>
+
+  <Card title="High" icon="triangle-exclamation" color="#ea580c">
+    **Score: 50 points**
+
+    - Sensitive data in code
+    - Payment information
+    - Authentication secrets
+    - Personal identifiers
+
+    **Action:** Address soon
+  </Card>
+
+  <Card title="Medium" icon="info-circle" color="#eab308">
+    **Score: 10 points**
+
+    - Email addresses
+    - Phone numbers
+    - High entropy strings
+    - Potential secrets
+
+    **Action:** Review recommended
+  </Card>
+
+  <Card title="Low" icon="circle" color="#3b82f6">
+    **Score: 1 point**
+
+    - IP addresses
+    - URLs
+    - Configuration values
+    - Minor issues
+
+    **Action:** Optional review
+  </Card>
+</CardGroup>
+
+## Privacy Grading Algorithm
+
+The privacy grade is calculated based on total severity score:
+
+```javascript
+function calculateGrade(totalScore) {
+  if (totalScore === 0) return 'A+';
+  if (totalScore <= 5) return 'A';
+  if (totalScore <= 10) return 'A-';
+  if (totalScore <= 20) return 'B+';
+  if (totalScore <= 30) return 'B';
+  if (totalScore <= 50) return 'B-';
+  if (totalScore <= 75) return 'C+';
+  if (totalScore <= 100) return 'C';
+  if (totalScore <= 150) return 'C-';
+  if (totalScore <= 200) return 'D';
+  return 'F';
+}
+```
+
+**Score Calculation:**
+```
+Total Score = Σ(severity_points × issue_count)
+```
+
+**Example:**
+- 1 Critical issue (100 pts) + 2 Medium issues (20 pts) = 120 points = **Grade C-**
+
+## File Scanning Process
+
+### 1. Directory Traversal
+
+```javascript
+// FileScanner recursively walks the directory tree
+scanDirectory(dir) {
+  for (entry in dir) {
+    if (shouldIgnore(entry)) continue;
+
+    if (isDirectory(entry)) {
+      scanDirectory(entry); // Recursive
+    } else if (isSupportedFile(entry)) {
+      files.push(entry);
+    }
+  }
+}
+```
+
+### 2. Ignore Rules
+
+KafkaCode automatically respects:
+
+**Built-in Ignores:**
+- `.git/`
+- `node_modules/`
+- `venv/`, `.venv/`, `env/`
+- `build/`, `dist/`, `target/`
+- `.next/`, `.nuxt/`
+- `coverage/`, `__pycache__/`
+
+**Gitignore Patterns:**
+- Reads and applies `.gitignore` rules
+- Uses glob pattern matching
+- Respects both file and directory patterns
+
+### 3. Content Analysis
+
+Each file is:
+1. Read into memory
+2. Scanned by PatternScanner
+3. Analyzed by LLMAnalyzer (if patterns found)
+4. Findings aggregated and classified
+
+## Performance Optimizations
+
+<AccordionGroup>
+  <Accordion icon="gauge-high" title="Efficient File Scanning">
+    - Skips ignored directories early
+    - Uses streaming for large files
+    - Processes files sequentially to manage memory
+  </Accordion>
+
+  <Accordion icon="brain" title="Smart LLM Usage">
+    - Only analyzes files with pattern findings
+    - Batches related issues together
+    - Uses concise prompts to minimize tokens
+  </Accordion>
+
+  <Accordion icon="database" title="Caching Strategy">
+    - Pattern regex compiled once
+    - File stats cached during traversal
+    - Reuses analysis for unchanged files
+  </Accordion>
+
+  <Accordion icon="memory" title="Memory Management">
+    - Files processed one at a time
+    - Buffers cleared after analysis
+    - Garbage collection optimized
+  </Accordion>
+</AccordionGroup>
+
+## Security & Privacy
+
+<Card title="Security-First Design" icon="shield-check">
+  **Built with security in mind:**
+
+  - ✅ Pattern scanning happens locally
+  - ✅ No telemetry or tracking
+  - ✅ Open source and auditable
+  - ✅ Respects .gitignore automatically
+  - ✅ MIT licensed
+</Card>
+
+<Note>
+  KafkaCode is designed to help developers identify privacy and security issues in their code.
+</Note>
+
+## Extensibility
+
+The architecture supports customization:
+
+```javascript
+// Custom pattern scanner
+class CustomPatternScanner extends PatternScanner {
+  constructor() {
+    super();
+    this.patterns.customSecret = /MY_CUSTOM_PATTERN/g;
+  }
+}
+
+// Custom analysis engine
+const engine = new AnalysisEngine();
+engine.patternScanner = new CustomPatternScanner();
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card
+    title="Detection Methods"
+    icon="magnifying-glass"
+    href="/concepts/detection-methods"
+  >
+    Learn about detection patterns
+  </Card>
+  <Card
+    title="Privacy Grading"
+    icon="chart-line"
+    href="/concepts/privacy-grading"
+  >
+    Understand the grading system
+  </Card>
+  <Card
+    title="API Reference"
+    icon="code"
+    href="/api-reference/overview"
+  >
+    Explore the programmatic API
+  </Card>
+  <Card
+    title="Custom Patterns"
+    icon="sliders"
+    href="/advanced/custom-patterns"
+  >
+    Add your own detection patterns
+  </Card>
+</CardGroup>

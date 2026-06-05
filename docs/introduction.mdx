@@ -1,0 +1,182 @@
+---
+title: Introduction
+description: 'Welcome to KafkaCode - AI-powered privacy and compliance scanner for your source code'
+---
+
+## What is KafkaCode?
+
+KafkaCode is an **AI-powered privacy scanner** built by [KafkaLabs](https://kafkalabs.com) that helps developers identify potential privacy issues, PII leaks, and compliance violations in their source code before they reach production.
+
+<CardGroup cols={2}>
+  <Card
+    title="Shift-Left Security"
+    icon="shield-check"
+    iconType="duotone"
+  >
+    Catch privacy issues early in the development cycle, before they make it to production
+  </Card>
+  <Card
+    title="AI-Powered Analysis"
+    icon="brain"
+    iconType="duotone"
+  >
+    Combines pattern-based detection with advanced LLM analysis for contextual insights
+  </Card>
+  <Card
+    title="Fast & Efficient"
+    icon="bolt"
+    iconType="duotone"
+  >
+    Scan entire codebases in seconds with optimized performance
+  </Card>
+  <Card
+    title="CI/CD Ready"
+    icon="code-branch"
+    iconType="duotone"
+  >
+    Seamlessly integrate with GitHub Actions, GitLab CI, and other pipelines
+  </Card>
+</CardGroup>
+
+## Key Features
+
+<AccordionGroup>
+  <Accordion icon="magnifying-glass" title="Pattern-based Detection">
+    Identifies hardcoded secrets, API keys, and sensitive data using advanced regex patterns
+  </Accordion>
+
+  <Accordion icon="robot" title="AI-powered Analysis">
+    Uses advanced LLM analysis for contextual privacy issues that go beyond simple pattern matching
+  </Accordion>
+
+  <Accordion icon="gauge-high" title="Privacy Grading">
+    Assigns privacy grades (A+ to F) based on severity and number of issues found
+  </Accordion>
+
+  <Accordion icon="file-code" title="Multi-Language Support">
+    Supports Python, JavaScript, TypeScript, Java, Go, Ruby, and PHP
+  </Accordion>
+
+  <Accordion icon="chart-bar" title="Detailed Reports">
+    Beautiful console reports with severity levels, line numbers, and actionable recommendations
+  </Accordion>
+
+  <Accordion icon="rocket" title="Zero Configuration">
+    Works out of the box with sensible defaults, respects .gitignore automatically
+  </Accordion>
+</AccordionGroup>
+
+## What It Detects
+
+<CardGroup cols={2}>
+  <Card title="Critical Issues" icon="triangle-exclamation" color="#dc2626">
+    - AWS Access Keys
+    - Private Keys (RSA, SSH)
+    - Stripe API Keys
+    - Database Credentials
+  </Card>
+
+  <Card title="High Severity" icon="exclamation" color="#ea580c">
+    - Sensitive keywords in assignments
+    - OAuth tokens
+    - Payment information
+    - Authentication credentials
+  </Card>
+
+  <Card title="Medium Severity" icon="info" color="#eab308">
+    - Email addresses
+    - Phone numbers
+    - High entropy strings
+    - Potential secrets
+  </Card>
+
+  <Card title="Low Severity" icon="circle-info" color="#3b82f6">
+    - IP addresses
+    - URLs with sensitive paths
+    - Hardcoded configurations
+  </Card>
+</CardGroup>
+
+## Quick Example
+
+```bash
+# Install globally
+npm install -g kafkacode
+
+# Scan your project
+kafkacode scan /path/to/your/project
+
+# Use with npx (no installation)
+npx kafkacode scan ./src
+```
+
+## Privacy Grade System
+
+KafkaCode assigns a privacy grade based on the severity and number of issues:
+
+| Grade | Description |
+|-------|-------------|
+| 🟢 **A+ / A / A-** | Excellent privacy practices |
+| 🔵 **B+ / B / B-** | Good privacy practices with minor issues |
+| 🟡 **C+ / C / C-** | Moderate privacy issues that should be addressed |
+| 🟠 **D** | Multiple high-severity privacy issues |
+| 🔴 **F** | Critical privacy vulnerabilities detected |
+
+## Why KafkaCode?
+
+<CardGroup cols={1}>
+  <Card title="Built for Developers" icon="code">
+    Simple CLI tool that fits naturally into your development workflow
+  </Card>
+
+  <Card title="Privacy-First Design" icon="lock">
+    Designed with security and privacy best practices in mind
+  </Card>
+
+  <Card title="Compliance Ready" icon="certificate">
+    Helps meet GDPR, CCPA, and other privacy regulation requirements
+  </Card>
+
+  <Card title="Open Source" icon="code-fork">
+    MIT licensed and community-driven development
+  </Card>
+</CardGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card
+    title="Quickstart"
+    icon="play"
+    href="/quickstart"
+  >
+    Get up and running in 5 minutes
+  </Card>
+  <Card
+    title="Installation Guide"
+    icon="download"
+    href="/installation"
+  >
+    Detailed installation instructions for all platforms
+  </Card>
+  <Card
+    title="Usage Guide"
+    icon="book"
+    href="/usage/basic-scanning"
+  >
+    Learn how to use KafkaCode effectively
+  </Card>
+  <Card
+    title="API Reference"
+    icon="code"
+    href="/api-reference/overview"
+  >
+    Explore the programmatic API
+  </Card>
+</CardGroup>
+
+---
+
+<Note>
+  **About KafkaLabs**: KafkaCode is built by [KafkaLabs](https://kafkalabs.com), helping developers build privacy-first applications.
+</Note>

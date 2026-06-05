@@ -1,0 +1,504 @@
+---
+title: 'CLI Options'
+description: 'Complete reference for KafkaCode command-line options'
+---
+
+## Command Structure
+
+```bash
+kafkacode <command> [options]
+```
+
+## Available Commands
+
+### scan
+
+Scan a directory for privacy issues.
+
+```bash
+kafkacode scan <directory> [options]
+```
+
+**Arguments:**
+- `<directory>` - Path to the source code directory to scan (required)
+
+**Options:**
+- `-v, --verbose` - Print verbose progress updates during the scan
+- `-h, --help` - Display help for the scan command
+
+**Examples:**
+
+```bash
+# Basic scan
+kafkacode scan ./src
+
+# Scan with verbose output
+kafkacode scan ./src --verbose
+
+# Scan current directory
+kafkacode scan .
+
+# Scan multiple directories (requires loop)
+for dir in frontend backend; do
+  kafkacode scan $dir
+done
+```
+
+### version
+
+Display the installed KafkaCode version.
+
+```bash
+kafkacode --version
+kafkacode -V
+```
+
+**Output:**
+```
+1.2.0
+```
+
+### help
+
+Display help information.
+
+```bash
+kafkacode --help
+kafkacode -h
+kafkacode scan --help
+```
+
+**Output:**
+```
+Usage: kafkacode [options] [command]
+
+KafkaCode - Privacy and Compliance Scanner
+
+Options:
+  -V, --version      output the version number
+  -h, --help         display help for command
+
+Commands:
+  scan [options] <directory>  Scan a directory for privacy issues
+  help [command]              display help for command
+```
+
+## Detailed Option Reference
+
+### Verbose Mode
+
+**Flag:** `-v, --verbose`
+
+**Description:** Enables detailed progress output during scanning.
+
+**Usage:**
+```bash
+kafkacode scan ./src --verbose
+```
+
+**Standard Output:**
+```bash
+🎯 PRIVACY SCAN REPORT
+📊 SCAN SUMMARY
+📄 Files Scanned: 25
+🔍 Total Issues: 3
+```
+
+**Verbose Output:**
+```bash
+🚀 Starting KafkaCode privacy scan...
+📁 Discovering source code files...
+Found 25 files to analyze
+🔍 Performing privacy analysis...
+
+Analyzing: src/config.js
+Analyzing: src/auth.js
+Analyzing: src/utils/validator.js
+...
+
+✅ Analysis complete
+
+🎯 PRIVACY SCAN REPORT
+📊 SCAN SUMMARY
+📄 Files Scanned: 25
+🔍 Total Issues: 3
+```
+
+**When to use:**
+- Debugging scan issues
+- Understanding what files are being analyzed
+- Monitoring progress on large codebases
+- Troubleshooting file discovery problems
+
+## Exit Codes
+
+KafkaCode returns different exit codes based on scan results:
+
+| Exit Code | Description | When It Occurs |
+|-----------|-------------|----------------|
+| `0` | Success - No issues found | Scan completed with zero findings |
+| `1` | Issues found or error | One or more privacy issues detected, or scan failed |
+
+### Exit Code Usage Examples
+
+<Tabs>
+  <Tab title="Bash Script">
+    ```bash
+    #!/bin/bash
+
+    # Exit on issues
+    kafkacode scan ./src || exit 1
+
+    # Conditional handling
+    if kafkacode scan ./src; then
+      echo "✅ Scan passed"
+      exit 0
+    else
+      echo "❌ Scan failed"
+      exit 1
+    fi
+
+    # Store exit code
+    kafkacode scan ./src
+    EXIT_CODE=$?
+
+    if [ $EXIT_CODE -eq 0 ]; then
+      echo "No issues found"
+    else
+      echo "Issues detected"
+    fi
+    ```
+  </Tab>
+
+  <Tab title="CI/CD Pipeline">
+    ```yaml
+    # GitHub Actions
+    - name: Privacy Scan
+      run: |
+        kafkacode scan ./src
+        if [ $? -ne 0 ]; then
+          echo "::error::Privacy issues detected"
+          exit 1
+        fi
+
+    # GitLab CI
+    privacy_scan:
+      script:
+        - kafkacode scan ./src
+      allow_failure: false
+    ```
+  </Tab>
+
+  <Tab title="npm Script">
+    ```json
+    {
+      "scripts": {
+        "scan": "kafkacode scan ./src",
+        "prescan": "echo 'Running privacy scan...'",
+        "postscan": "echo 'Scan complete'",
+        "ci:scan": "kafkacode scan ./src || (echo 'Privacy issues found' && exit 1)"
+      }
+    }
+    ```
+  </Tab>
+</Tabs>
+
+## Environment Variables
+
+While KafkaCode doesn't use environment variables for configuration, you can use them in scripts:
+
+```bash
+# Set scan directory via env var
+export SCAN_DIR="./src"
+kafkacode scan $SCAN_DIR
+
+# Conditional verbose mode
+export VERBOSE="true"
+if [ "$VERBOSE" = "true" ]; then
+  kafkacode scan ./src --verbose
+else
+  kafkacode scan ./src
+fi
+
+# CI environment detection
+if [ "$CI" = "true" ]; then
+  kafkacode scan . --verbose
+fi
+```
+
+## Configuration Files
+
+KafkaCode currently doesn't support configuration files, but automatically respects:
+
+### .gitignore
+
+All patterns in `.gitignore` are automatically excluded:
+
+```gitignore
+# These will be skipped
+*.env
+*.key
+secrets/
+config/local.*
+```
+
+### Built-in Exclusions
+
+Automatically ignored:
+
+```
+.git/
+node_modules/
+venv/
+build/
+dist/
+__pycache__/
+coverage/
+```
+
+## Integration Patterns
+
+### npm/yarn Scripts
+
+Add to your `package.json`:
+
+```json
+{
+  "scripts": {
+    "scan": "kafkacode scan ./src",
+    "scan:verbose": "kafkacode scan ./src --verbose",
+    "scan:all": "kafkacode scan .",
+    "prescan": "echo '🔍 Starting privacy scan...'",
+    "postscan": "echo '✅ Privacy scan complete'",
+    "test": "npm run scan && jest",
+    "precommit": "kafkacode scan ./src"
+  }
+}
+```
+
+### Pre-commit Hook
+
+Create `.git/hooks/pre-commit`:
+
+```bash
+#!/bin/bash
+
+echo "🔍 Running KafkaCode privacy scan..."
+
+kafkacode scan ./src
+
+if [ $? -ne 0 ]; then
+  echo "❌ Privacy issues detected. Commit aborted."
+  echo "Run 'kafkacode scan ./src --verbose' for details"
+  exit 1
+fi
+
+echo "✅ Privacy scan passed"
+exit 0
+```
+
+Make it executable:
+```bash
+chmod +x .git/hooks/pre-commit
+```
+
+### Makefile Integration
+
+```makefile
+.PHONY: scan scan-verbose scan-ci
+
+scan:
+	kafkacode scan ./src
+
+scan-verbose:
+	kafkacode scan ./src --verbose
+
+scan-ci:
+	kafkacode scan ./src || (echo "Privacy scan failed" && exit 1)
+
+test: scan
+	npm test
+
+deploy: scan-ci
+	npm run deploy
+```
+
+## Common Use Cases
+
+### 1. Quick Local Scan
+
+```bash
+# Fast scan of source directory
+kafkacode scan ./src
+```
+
+### 2. Detailed Analysis
+
+```bash
+# Verbose output for troubleshooting
+kafkacode scan . --verbose
+```
+
+### 3. CI/CD Pipeline
+
+```bash
+# Fail build on issues
+kafkacode scan ./src || exit 1
+```
+
+### 4. Pre-deployment Check
+
+```bash
+# Comprehensive scan before deploy
+kafkacode scan . --verbose
+if [ $? -eq 0 ]; then
+  npm run deploy
+else
+  echo "Fix privacy issues before deploying"
+  exit 1
+fi
+```
+
+### 5. Multiple Directories
+
+```bash
+# Scan multiple directories
+for dir in src lib utils; do
+  echo "Scanning $dir..."
+  kafkacode scan ./$dir
+done
+```
+
+### 6. Scheduled Scans
+
+```bash
+# Cron job: Daily scan at 2 AM
+0 2 * * * cd /path/to/project && kafkacode scan . > /var/log/privacy-scan.log 2>&1
+```
+
+## Output Formats
+
+Currently, KafkaCode outputs to the console in a human-readable format. Future versions may support:
+
+<CardGroup cols={2}>
+  <Card title="JSON Output" icon="code" color="#gray">
+    ```bash
+    # Coming soon
+    kafkacode scan ./src --format json
+    ```
+  </Card>
+
+  <Card title="SARIF Output" icon="file-code" color="#gray">
+    ```bash
+    # Coming soon
+    kafkacode scan ./src --format sarif
+    ```
+  </Card>
+
+  <Card title="HTML Report" icon="file" color="#gray">
+    ```bash
+    # Coming soon
+    kafkacode scan ./src --output report.html
+    ```
+  </Card>
+
+  <Card title="CSV Export" icon="table" color="#gray">
+    ```bash
+    # Coming soon
+    kafkacode scan ./src --format csv
+    ```
+  </Card>
+</CardGroup>
+
+<Info>
+  Want these features? [Vote on GitHub](https://github.com/nikhil-kapu/kafkacode/issues) or contribute!
+</Info>
+
+## Troubleshooting
+
+### Command Not Found
+
+```bash
+# Error: kafkacode: command not found
+
+# Solutions:
+# 1. Use npx
+npx kafkacode scan ./src
+
+# 2. Check global installation
+npm list -g kafkacode
+
+# 3. Reinstall globally
+npm install -g kafkacode
+
+# 4. Check PATH
+echo $PATH | grep npm
+```
+
+### Permission Errors
+
+```bash
+# Error: EACCES: permission denied
+
+# Solutions:
+# 1. Use npx (no sudo needed)
+npx kafkacode scan ./src
+
+# 2. Fix npm permissions
+npm config set prefix ~/.npm-global
+export PATH=~/.npm-global/bin:$PATH
+
+# 3. Never use sudo with npm!
+```
+
+### Scan Errors
+
+```bash
+# Error: Directory does not exist
+
+# Solutions:
+# 1. Verify path
+ls -la /path/to/directory
+
+# 2. Use absolute path
+kafkacode scan /absolute/path/to/src
+
+# 3. Use verbose mode
+kafkacode scan ./src --verbose
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card
+    title="Interpreting Results"
+    icon="chart-line"
+    href="/usage/interpreting-results"
+  >
+    Learn to understand scan reports
+  </Card>
+
+  <Card
+    title="CI/CD Integration"
+    icon="code-branch"
+    href="/usage/ci-cd-integration"
+  >
+    Automate scanning in pipelines
+  </Card>
+
+  <Card
+    title="Examples"
+    icon="book"
+    href="/examples/basic-scan"
+  >
+    See real-world examples
+  </Card>
+
+  <Card
+    title="Troubleshooting"
+    icon="wrench"
+    href="/advanced/troubleshooting"
+  >
+    Solve common issues
+  </Card>
+</CardGroup>

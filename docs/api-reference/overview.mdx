@@ -1,0 +1,409 @@
+---
+title: 'API Overview'
+description: 'Programmatic API reference for KafkaCode'
+---
+
+## Introduction
+
+While KafkaCode is primarily a CLI tool, it's built with modular components that can be used programmatically in your Node.js applications.
+
+## Architecture
+
+KafkaCode consists of five main components:
+
+<CardGroup cols={2}>
+  <Card title="FileScanner" icon="folder" href="/api-reference/file-scanner">
+    Discovers and filters source code files
+  </Card>
+
+  <Card title="PatternScanner" icon="magnifying-glass" href="/api-reference/pattern-scanner">
+    Regex-based pattern detection
+  </Card>
+
+  <Card title="LLMAnalyzer" icon="brain" href="/api-reference/llm-analyzer">
+    AI-powered contextual analysis
+  </Card>
+
+  <Card title="AnalysisEngine" icon="cog" href="/api-reference/analysis-engine">
+    Orchestrates the scanning process
+  </Card>
+
+  <Card title="ReportGenerator" icon="file-alt" href="/api-reference/report-generator">
+    Generates formatted reports
+  </Card>
+</CardGroup>
+
+## Basic Usage
+
+```javascript
+const { AnalysisEngine, FileScanner, ReportGenerator } = require('kafkacode');
+
+async function scanProject(directory) {
+  // Initialize components
+  const fileScanner = new FileScanner(directory);
+  const analysisEngine = new AnalysisEngine();
+  const reportGenerator = new ReportGenerator();
+
+  // Scan for files
+  const files = fileScanner.scanFiles();
+
+  // Analyze files
+  const findings = await analysisEngine.analyzeFiles(files);
+
+  // Generate report
+  const report = reportGenerator.generateReport(directory, findings, files.length);
+
+  console.log(report);
+  return findings;
+}
+
+// Usage
+scanProject('./src')
+  .then(findings => {
+    console.log(`Found ${findings.length} issues`);
+    process.exit(findings.length > 0 ? 1 : 0);
+  })
+  .catch(error => {
+    console.error('Scan failed:', error);
+    process.exit(1);
+  });
+```
+
+## Installation
+
+```bash
+npm install kafkacode
+```
+
+## Import Syntax
+
+<Tabs>
+  <Tab title="CommonJS">
+    ```javascript
+    const FileScanner = require('kafkacode/dist/FileScanner');
+    const AnalysisEngine = require('kafkacode/dist/AnalysisEngine');
+    const ReportGenerator = require('kafkacode/dist/ReportGenerator');
+    const PatternScanner = require('kafkacode/dist/PatternScanner');
+    const LLMAnalyzer = require('kafkacode/dist/LLMAnalyzer');
+    ```
+  </Tab>
+
+  <Tab title="ES Modules">
+    ```javascript
+    import FileScanner from 'kafkacode/dist/FileScanner.js';
+    import AnalysisEngine from 'kafkacode/dist/AnalysisEngine.js';
+    import ReportGenerator from 'kafkacode/dist/ReportGenerator.js';
+    import PatternScanner from 'kafkacode/dist/PatternScanner.js';
+    import LLMAnalyzer from 'kafkacode/dist/LLMAnalyzer.js';
+    ```
+  </Tab>
+</Tabs>
+
+## Data Structures
+
+### Finding Object
+
+Each finding has this structure:
+
+```typescript
+interface Finding {
+  filePath: string;       // Path to the file
+  lineNumber: number;     // Line number where issue was found
+  severity: 'critical' | 'high' | 'medium' | 'low';
+  type: string;          // Type of issue (e.g., 'AWS Access Key')
+  description: string;   // Human-readable description
+  codeSnippet: string;   // The problematic code
+  recommendation: string; // How to fix it
+}
+```
+
+Example:
+
+```javascript
+{
+  filePath: 'src/config.js',
+  lineNumber: 12,
+  severity: 'critical',
+  type: 'AWS Access Key',
+  description: 'AWS Access Key detected',
+  codeSnippet: 'aws_access_key_id = "AKIAIOSFODNN7EXAMPLE"',
+  recommendation: 'Move to environment variables'
+}
+```
+
+## Quick Examples
+
+### Example 1: Simple Scan
+
+```javascript
+const { AnalysisEngine, FileScanner } = require('kafkacode');
+
+async function quickScan() {
+  const scanner = new FileScanner('./src');
+  const engine = new AnalysisEngine();
+
+  const files = scanner.scanFiles();
+  const findings = await engine.analyzeFiles(files);
+
+  console.log(`Scanned ${files.length} files`);
+  console.log(`Found ${findings.length} issues`);
+
+  return findings;
+}
+
+quickScan();
+```
+
+### Example 2: Custom Filtering
+
+```javascript
+const { AnalysisEngine, FileScanner } = require('kafkacode');
+
+async function scanWithFilter() {
+  const scanner = new FileScanner('./src');
+  const engine = new AnalysisEngine();
+
+  const files = scanner.scanFiles();
+  const findings = await engine.analyzeFiles(files);
+
+  // Filter for critical issues only
+  const critical = findings.filter(f => f.severity === 'critical');
+
+  console.log(`Critical issues: ${critical.length}`);
+  critical.forEach(finding => {
+    console.log(`${finding.filePath}:${finding.lineNumber} - ${finding.type}`);
+  });
+
+  return critical;
+}
+
+scanWithFilter();
+```
+
+### Example 3: Verbose Mode
+
+```javascript
+const { AnalysisEngine, FileScanner } = require('kafkacode');
+
+async function verboseScan() {
+  const scanner = new FileScanner('./src');
+  const engine = new AnalysisEngine(true); // Enable verbose
+
+  console.log('Starting scan...');
+
+  const files = scanner.scanFiles();
+  console.log(`Found ${files.length} files`);
+
+  const findings = await engine.analyzeFiles(files);
+
+  return findings;
+}
+
+verboseScan();
+```
+
+### Example 4: Single File Analysis
+
+```javascript
+const { AnalysisEngine } = require('kafkacode');
+
+async function analyzeFile(filePath) {
+  const engine = new AnalysisEngine();
+  const findings = await engine.analyzeFile(filePath);
+
+  console.log(`Issues in ${filePath}: ${findings.length}`);
+
+  return findings;
+}
+
+analyzeFile('./src/config.js');
+```
+
+### Example 5: Custom Report
+
+```javascript
+const { AnalysisEngine, FileScanner } = require('kafkacode');
+
+async function customReport() {
+  const scanner = new FileScanner('./src');
+  const engine = new AnalysisEngine();
+
+  const files = scanner.scanFiles();
+  const findings = await engine.analyzeFiles(files);
+
+  // Group by severity
+  const grouped = findings.reduce((acc, finding) => {
+    acc[finding.severity] = acc[finding.severity] || [];
+    acc[finding.severity].push(finding);
+    return acc;
+  }, {});
+
+  // Custom output
+  console.log('=== Custom Privacy Report ===');
+  for (const [severity, items] of Object.entries(grouped)) {
+    console.log(`\n${severity.toUpperCase()}: ${items.length}`);
+    items.forEach(item => {
+      console.log(`  - ${item.filePath}:${item.lineNumber}`);
+    });
+  }
+
+  return grouped;
+}
+
+customReport();
+```
+
+## Use Cases
+
+<AccordionGroup>
+  <Accordion icon="code" title="Programmatic Scanning">
+    Integrate KafkaCode into your build tools or scripts:
+
+    ```javascript
+    const { AnalysisEngine, FileScanner } = require('kafkacode');
+
+    async function buildWithScan() {
+      // Scan before build
+      const scanner = new FileScanner('./src');
+      const engine = new AnalysisEngine();
+
+      const files = scanner.scanFiles();
+      const findings = await engine.analyzeFiles(files);
+
+      if (findings.length > 0) {
+        console.error('Privacy issues detected. Build aborted.');
+        process.exit(1);
+      }
+
+      // Proceed with build
+      console.log('Privacy scan passed. Building...');
+      // ... build logic
+    }
+    ```
+  </Accordion>
+
+  <Accordion icon="plug" title="Custom Integrations">
+    Build custom tools on top of KafkaCode:
+
+    ```javascript
+    const { PatternScanner } = require('kafkacode');
+
+    class CustomScanner extends PatternScanner {
+      constructor() {
+        super();
+        // Add custom patterns
+        this.patterns.customSecret = /MY_CUSTOM_PATTERN/g;
+      }
+    }
+
+    const scanner = new CustomScanner();
+    ```
+  </Accordion>
+
+  <Accordion icon="server" title="API Server">
+    Create a scanning API service:
+
+    ```javascript
+    const express = require('express');
+    const { AnalysisEngine, FileScanner } = require('kafkacode');
+
+    const app = express();
+
+    app.post('/scan', async (req, res) => {
+      const { directory } = req.body;
+
+      const scanner = new FileScanner(directory);
+      const engine = new AnalysisEngine();
+
+      const files = scanner.scanFiles();
+      const findings = await engine.analyzeFiles(files);
+
+      res.json({
+        filesScanned: files.length,
+        issuesFound: findings.length,
+        findings
+      });
+    });
+
+    app.listen(3000);
+    ```
+  </Accordion>
+
+  <Accordion icon="chart-line" title="Metrics Collection">
+    Track privacy metrics over time:
+
+    ```javascript
+    const { AnalysisEngine, FileScanner } = require('kafkacode');
+
+    async function collectMetrics() {
+      const scanner = new FileScanner('./src');
+      const engine = new AnalysisEngine();
+
+      const files = scanner.scanFiles();
+      const findings = await engine.analyzeFiles(files);
+
+      // Calculate metrics
+      const metrics = {
+        timestamp: new Date(),
+        filesScanned: files.length,
+        totalIssues: findings.length,
+        critical: findings.filter(f => f.severity === 'critical').length,
+        high: findings.filter(f => f.severity === 'high').length,
+        medium: findings.filter(f => f.severity === 'medium').length,
+        low: findings.filter(f => f.severity === 'low').length
+      };
+
+      // Store in database or send to metrics service
+      await saveMetrics(metrics);
+
+      return metrics;
+    }
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Component Overview
+
+| Component | Purpose | Key Methods |
+|-----------|---------|-------------|
+| **FileScanner** | File discovery | `scanFiles()` |
+| **PatternScanner** | Regex detection | `scanContent()` |
+| **LLMAnalyzer** | AI analysis | `analyzeFile()` |
+| **AnalysisEngine** | Orchestration | `analyzeFile()`, `analyzeFiles()` |
+| **ReportGenerator** | Report formatting | `generateReport()` |
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card
+    title="FileScanner API"
+    icon="folder"
+    href="/api-reference/file-scanner"
+  >
+    Learn about file discovery
+  </Card>
+
+  <Card
+    title="AnalysisEngine API"
+    icon="cog"
+    href="/api-reference/analysis-engine"
+  >
+    Explore the analysis engine
+  </Card>
+
+  <Card
+    title="PatternScanner API"
+    icon="magnifying-glass"
+    href="/api-reference/pattern-scanner"
+  >
+    Understand pattern detection
+  </Card>
+
+  <Card
+    title="Examples"
+    icon="book"
+    href="/examples/basic-scan"
+  >
+    See practical examples
+  </Card>
+</CardGroup>

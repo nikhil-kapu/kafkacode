@@ -1,0 +1,56 @@
+{
+  "name": "kafkacode",
+  "version": "1.2.0",
+  "description": "AI-powered privacy and compliance scanner - find PII leaks, hardcoded secrets, and compliance violations in your source code",
+  "main": "dist/index.js",
+  "bin": {
+    "kafkacode": "dist/cli.js"
+  },
+  "scripts": {
+    "build": "node build.js",
+    "prepublishOnly": "npm run build",
+    "test": "node test/test.js"
+  },
+  "keywords": [
+    "privacy",
+    "compliance",
+    "security",
+    "scanner",
+    "static-analysis",
+    "pii",
+    "gdpr",
+    "ccpa",
+    "secret-detection",
+    "code-analysis",
+    "privacy-scanner",
+    "ai-powered",
+    "shift-left",
+    "cli-tool",
+    "security-scanner",
+    "vulnerability-scanner"
+  ],
+  "author": "KafkaLabs <contact@kafkalabs.com>",
+  "license": "MIT",
+  "dependencies": {
+    "commander": "^9.4.1",
+    "minimatch": "^9.0.3",
+    "chalk": "^4.1.2"
+  },
+  "engines": {
+    "node": ">=14.0.0"
+  },
+  "files": [
+    "dist/",
+    "README.md",
+    "LICENSE",
+    "CHANGELOG.md"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/nikhil-kapu/kafkacode.git"
+  },
+  "homepage": "https://github.com/nikhil-kapu/kafkacode#readme",
+  "bugs": {
+    "url": "https://github.com/nikhil-kapu/kafkacode/issues"
+  }
+}

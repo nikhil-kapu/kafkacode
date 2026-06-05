@@ -1,0 +1,404 @@
+---
+title: 'FileScanner'
+description: 'API reference for the FileScanner class'
+---
+
+## Overview
+
+The `FileScanner` class is responsible for discovering source code files in a directory while respecting ignore rules and exclusions.
+
+## Constructor
+
+```javascript
+new FileScanner(rootDir)
+```
+
+**Parameters:**
+- `rootDir` (string): The root directory to scan
+
+**Example:**
+```javascript
+const FileScanner = require('kafkacode/dist/FileScanner');
+
+const scanner = new FileScanner('./src');
+```
+
+## Properties
+
+### rootDir
+
+```javascript
+scanner.rootDir
+```
+
+The resolved absolute path of the root directory.
+
+**Type:** `string`
+
+### supportedExtensions
+
+```javascript
+scanner.supportedExtensions
+```
+
+Set of supported file extensions.
+
+**Type:** `Set<string>`
+
+**Default values:**
+```javascript
+new Set(['.py', '.js', '.ts', '.java', '.go', '.rb', '.php'])
+```
+
+### ignoreDirs
+
+```javascript
+scanner.ignoreDirs
+```
+
+Set of directory names to ignore during scanning.
+
+**Type:** `Set<string>`
+
+**Default values:**
+```javascript
+new Set([
+  '.git', 'node_modules', 'venv', '__pycache__',
+  '.venv', 'env', 'build', 'dist', 'target',
+  'out', '.next', '.nuxt', 'vendor', 'coverage',
+  '.coverage', '.pytest_cache', '.mypy_cache'
+])
+```
+
+### gitignorePatterns
+
+```javascript
+scanner.gitignorePatterns
+```
+
+Array of patterns loaded from `.gitignore`.
+
+**Type:** `string[]`
+
+## Methods
+
+### scanFiles()
+
+Scans the directory and returns an array of file paths.
+
+```javascript
+scanFiles(): string[]
+```
+
+**Returns:** Array of absolute file paths
+
+**Example:**
+```javascript
+const scanner = new FileScanner('./src');
+const files = scanner.scanFiles();
+
+console.log(`Found ${files.length} files`);
+files.forEach(file => console.log(file));
+```
+
+**Output:**
+```
+Found 25 files
+/absolute/path/to/src/config.js
+/absolute/path/to/src/auth.js
+/absolute/path/to/src/utils/validator.js
+...
+```
+
+## Private Methods
+
+### _loadGitignore()
+
+Loads and parses the `.gitignore` file.
+
+```javascript
+_loadGitignore(): string[]
+```
+
+**Returns:** Array of gitignore patterns
+
+**Implementation details:**
+- Reads `.gitignore` from root directory
+- Filters out comments (lines starting with `#`)
+- Filters out empty lines
+- Returns array of patterns
+
+### _shouldIgnorePath(filePath)
+
+Determines if a path should be ignored.
+
+```javascript
+_shouldIgnorePath(filePath: string): boolean
+```
+
+**Parameters:**
+- `filePath` (string): Path to check
+
+**Returns:** `true` if should be ignored, `false` otherwise
+
+**Checks:**
+1. Built-in ignore directories
+2. Gitignore patterns
+
+### _scanDirectory(dir)
+
+Recursively scans a directory.
+
+```javascript
+_scanDirectory(dir: string): string[]
+```
+
+**Parameters:**
+- `dir` (string): Directory to scan
+
+**Returns:** Array of file paths
+
+## Usage Examples
+
+### Basic Scanning
+
+```javascript
+const FileScanner = require('kafkacode/dist/FileScanner');
+
+const scanner = new FileScanner('./src');
+const files = scanner.scanFiles();
+
+console.log(`Total files: ${files.length}`);
+```
+
+### Custom Extensions
+
+```javascript
+const scanner = new FileScanner('./src');
+
+// Add custom extension
+scanner.supportedExtensions.add('.jsx');
+scanner.supportedExtensions.add('.tsx');
+
+const files = scanner.scanFiles();
+```
+
+### Custom Ignore Directories
+
+```javascript
+const scanner = new FileScanner('./src');
+
+// Add custom ignore directory
+scanner.ignoreDirs.add('generated');
+scanner.ignoreDirs.add('third_party');
+
+const files = scanner.scanFiles();
+```
+
+### Filtering Results
+
+```javascript
+const scanner = new FileScanner('./src');
+const files = scanner.scanFiles();
+
+// Filter for JavaScript files only
+const jsFiles = files.filter(file => file.endsWith('.js'));
+
+console.log(`JavaScript files: ${jsFiles.length}`);
+```
+
+### Scan Multiple Directories
+
+```javascript
+const directories = ['./src', './lib', './utils'];
+const allFiles = [];
+
+for (const dir of directories) {
+  const scanner = new FileScanner(dir);
+  const files = scanner.scanFiles();
+  allFiles.push(...files);
+}
+
+console.log(`Total files: ${allFiles.length}`);
+```
+
+### Count Files by Extension
+
+```javascript
+const scanner = new FileScanner('./src');
+const files = scanner.scanFiles();
+
+const counts = files.reduce((acc, file) => {
+  const ext = file.split('.').pop();
+  acc[ext] = (acc[ext] || 0) + 1;
+  return acc;
+}, {});
+
+console.log('Files by extension:', counts);
+// Output: { js: 15, ts: 8, py: 2 }
+```
+
+## Integration Examples
+
+### With AnalysisEngine
+
+```javascript
+const FileScanner = require('kafkacode/dist/FileScanner');
+const AnalysisEngine = require('kafkacode/dist/AnalysisEngine');
+
+async function scanProject(directory) {
+  const scanner = new FileScanner(directory);
+  const engine = new AnalysisEngine();
+
+  const files = scanner.scanFiles();
+  const findings = await engine.analyzeFiles(files);
+
+  return findings;
+}
+```
+
+### Selective Scanning
+
+```javascript
+const scanner = new FileScanner('./src');
+
+// Only scan specific subdirectories
+const files = scanner.scanFiles().filter(file => {
+  return file.includes('/auth/') || file.includes('/api/');
+});
+
+console.log(`Filtered to ${files.length} files`);
+```
+
+### Progress Tracking
+
+```javascript
+const scanner = new FileScanner('./src');
+const files = scanner.scanFiles();
+
+console.log(`Discovered ${files.length} files:`);
+
+files.forEach((file, index) => {
+  const progress = ((index + 1) / files.length * 100).toFixed(1);
+  console.log(`[${progress}%] ${file}`);
+});
+```
+
+## Gitignore Support
+
+The FileScanner automatically respects `.gitignore` patterns:
+
+```gitignore
+# .gitignore
+*.env
+*.key
+secrets/
+config/local.*
+```
+
+These patterns are automatically applied:
+
+```javascript
+const scanner = new FileScanner('./src');
+const files = scanner.scanFiles();
+
+// Files matching .gitignore patterns are excluded
+// *.env files won't be in the results
+// Files in secrets/ won't be in the results
+```
+
+## Error Handling
+
+```javascript
+const scanner = new FileScanner('./nonexistent');
+
+try {
+  const files = scanner.scanFiles();
+} catch (error) {
+  // Handle errors
+  if (error.code === 'ENOENT') {
+    console.error('Directory does not exist');
+  }
+}
+```
+
+<Note>
+  FileScanner silently ignores inaccessible directories and continues scanning. This prevents permission errors from stopping the entire scan.
+</Note>
+
+## Performance Considerations
+
+<AccordionGroup>
+  <Accordion icon="gauge" title="Large Repositories">
+    For very large codebases (> 10,000 files):
+
+    ```javascript
+    // Scan specific subdirectories instead
+    const scanner = new FileScanner('./src/critical');
+    ```
+  </Accordion>
+
+  <Accordion icon="folder" title="Efficient Ignore Patterns">
+    Add commonly large directories to ignoreDirs:
+
+    ```javascript
+    scanner.ignoreDirs.add('test-fixtures');
+    scanner.ignoreDirs.add('mockdata');
+    ```
+  </Accordion>
+
+  <Accordion icon="filter" title="Extension Filtering">
+    Remove unused extensions to reduce file count:
+
+    ```javascript
+    scanner.supportedExtensions = new Set(['.js', '.ts']);
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## API Summary
+
+| Method/Property | Type | Description |
+|-----------------|------|-------------|
+| `constructor(rootDir)` | Constructor | Initialize scanner with root directory |
+| `rootDir` | Property | Absolute path to root directory |
+| `supportedExtensions` | Property | Set of supported file extensions |
+| `ignoreDirs` | Property | Set of directories to ignore |
+| `gitignorePatterns` | Property | Array of gitignore patterns |
+| `scanFiles()` | Method | Scan directory and return file paths |
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card
+    title="AnalysisEngine"
+    icon="cog"
+    href="/api-reference/analysis-engine"
+  >
+    Learn how to analyze files
+  </Card>
+
+  <Card
+    title="PatternScanner"
+    icon="magnifying-glass"
+    href="/api-reference/pattern-scanner"
+  >
+    Explore pattern detection
+  </Card>
+
+  <Card
+    title="Usage Guide"
+    icon="book"
+    href="/usage/basic-scanning"
+  >
+    See practical usage examples
+  </Card>
+
+  <Card
+    title="Supported Languages"
+    icon="code"
+    href="/concepts/supported-languages"
+  >
+    Check supported file types
+  </Card>
+</CardGroup>

@@ -1,0 +1,84 @@
+---
+title: 'Configuration'
+description: 'Configure KafkaCode for your project'
+---
+
+## Gitignore Support
+
+KafkaCode automatically respects your `.gitignore` file. Add patterns to exclude files from scanning:
+
+```gitignore
+# .gitignore
+*.env
+*.key
+*.pem
+secrets/
+config/local.*
+test-fixtures/
+```
+
+## Custom Ignore Patterns
+
+Extend the built-in ignore patterns programmatically:
+
+```javascript
+const FileScanner = require('kafkacode/dist/FileScanner');
+
+const scanner = new FileScanner('./src');
+
+// Add custom ignore directories
+scanner.ignoreDirs.add('generated');
+scanner.ignoreDirs.add('third-party');
+scanner.ignoreDirs.add('mock-data');
+
+// Add custom file extensions
+scanner.supportedExtensions.add('.jsx');
+scanner.supportedExtensions.add('.tsx');
+
+const files = scanner.scanFiles();
+```
+
+## Environment-Specific Configuration
+
+```javascript
+// config/kafkacode-config.js
+module.exports = {
+  development: {
+    ignoreDirs: ['test-fixtures', 'mock-data'],
+    verbose: true
+  },
+  production: {
+    ignoreDirs: ['tests', 'docs'],
+    verbose: false,
+    exitOnIssues: true
+  }
+};
+
+// Usage
+const config = require('./config/kafkacode-config')[process.env.NODE_ENV];
+
+const scanner = new FileScanner('./src');
+config.ignoreDirs.forEach(dir => scanner.ignoreDirs.add(dir));
+
+const engine = new AnalysisEngine(config.verbose);
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card
+    title="Custom Patterns"
+    icon="wrench"
+    href="/advanced/custom-patterns"
+  >
+    Add custom detection patterns
+  </Card>
+
+  <Card
+    title="API Reference"
+    icon="code"
+    href="/api-reference/overview"
+  >
+    Explore programmatic API
+  </Card>
+</CardGroup>

@@ -1,0 +1,43 @@
+---
+title: 'Pre-commit Hook Example'
+description: 'Set up pre-commit hooks for automatic privacy scanning'
+---
+
+## Git Pre-commit Hook
+
+Create `.git/hooks/pre-commit`:
+
+```bash
+#!/bin/sh
+
+echo "🔍 Running KafkaCode privacy scan..."
+
+kafkacode scan ./src
+
+if [ $? -ne 0 ]; then
+  echo "❌ Privacy issues detected. Commit aborted."
+  echo "Run 'kafkacode scan ./src --verbose' for details"
+  exit 1
+fi
+
+echo "✅ Privacy scan passed"
+exit 0
+```
+
+Make it executable:
+
+```bash
+chmod +x .git/hooks/pre-commit
+```
+
+## Using Husky
+
+Install Husky:
+
+```bash
+npm install --save-dev husky
+npx husky install
+npx husky add .husky/pre-commit "kafkacode scan ./src"
+```
+
+For more pre-commit examples, see the [CI/CD Integration Guide](/usage/ci-cd-integration).

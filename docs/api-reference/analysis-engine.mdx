@@ -1,0 +1,490 @@
+---
+title: 'AnalysisEngine'
+description: 'API reference for the AnalysisEngine class'
+---
+
+## Overview
+
+The `AnalysisEngine` class orchestrates the privacy scanning process by combining pattern-based detection with AI-powered analysis.
+
+## Constructor
+
+```javascript
+new AnalysisEngine(verbose = false)
+```
+
+**Parameters:**
+- `verbose` (boolean, optional): Enable verbose logging. Default: `false`
+
+**Example:**
+```javascript
+const AnalysisEngine = require('kafkacode/dist/AnalysisEngine');
+
+// Standard mode
+const engine = new AnalysisEngine();
+
+// Verbose mode
+const verboseEngine = new AnalysisEngine(true);
+```
+
+## Properties
+
+### verbose
+
+```javascript
+engine.verbose
+```
+
+Controls verbose logging output.
+
+**Type:** `boolean`
+
+### patternScanner
+
+```javascript
+engine.patternScanner
+```
+
+Instance of PatternScanner used for regex-based detection.
+
+**Type:** `PatternScanner`
+
+### llmAnalyzer
+
+```javascript
+engine.llmAnalyzer
+```
+
+Instance of LLMAnalyzer used for AI-powered analysis.
+
+**Type:** `LLMAnalyzer`
+
+## Methods
+
+### analyzeFile(filePath)
+
+Analyzes a single file for privacy issues.
+
+```javascript
+async analyzeFile(filePath: string): Promise<Finding[]>
+```
+
+**Parameters:**
+- `filePath` (string): Absolute path to the file
+
+**Returns:** Promise resolving to array of findings
+
+**Example:**
+```javascript
+const engine = new AnalysisEngine();
+
+const findings = await engine.analyzeFile('./src/config.js');
+
+console.log(`Found ${findings.length} issues in config.js`);
+findings.forEach(finding => {
+  console.log(`Line ${finding.lineNumber}: ${finding.description}`);
+});
+```
+
+**Process:**
+1. Reads file content
+2. Runs PatternScanner for regex detection
+3. Runs LLMAnalyzer for contextual analysis
+4. Combines and returns all findings
+
+### analyzeFiles(filePaths)
+
+Analyzes multiple files for privacy issues.
+
+```javascript
+async analyzeFiles(filePaths: string[]): Promise<Finding[]>
+```
+
+**Parameters:**
+- `filePaths` (string[]): Array of absolute file paths
+
+**Returns:** Promise resolving to array of all findings
+
+**Example:**
+```javascript
+const FileScanner = require('kafkacode/dist/FileScanner');
+const AnalysisEngine = require('kafkacode/dist/AnalysisEngine');
+
+const scanner = new FileScanner('./src');
+const engine = new AnalysisEngine();
+
+const files = scanner.scanFiles();
+const findings = await engine.analyzeFiles(files);
+
+console.log(`Analyzed ${files.length} files`);
+console.log(`Found ${findings.length} total issues`);
+```
+
+**Process:**
+1. Iterates through each file
+2. Calls `analyzeFile()` for each
+3. Aggregates all findings
+4. Returns combined results
+
+## Usage Examples
+
+### Basic Analysis
+
+```javascript
+const AnalysisEngine = require('kafkacode/dist/AnalysisEngine');
+
+async function basicAnalysis() {
+  const engine = new AnalysisEngine();
+
+  const findings = await engine.analyzeFile('./src/config.js');
+
+  if (findings.length === 0) {
+    console.log('✅ No issues found');
+  } else {
+    console.log(`⚠️  Found ${findings.length} issues`);
+  }
+
+  return findings;
+}
+```
+
+### Verbose Analysis
+
+```javascript
+const engine = new AnalysisEngine(true);
+
+const findings = await engine.analyzeFile('./src/auth.js');
+
+// Verbose output shows progress:
+// Analyzing: ./src/auth.js
+// Pattern scan complete
+// LLM analysis complete
+```
+
+### Batch Analysis
+
+```javascript
+async function batchAnalysis(files) {
+  const engine = new AnalysisEngine();
+  const allFindings = [];
+
+  for (const file of files) {
+    console.log(`Analyzing ${file}...`);
+    const findings = await engine.analyzeFile(file);
+    allFindings.push(...findings);
+  }
+
+  return allFindings;
+}
+
+const files = ['./src/config.js', './src/auth.js', './src/db.js'];
+const findings = await batchAnalysis(files);
+```
+
+### Filter by Severity
+
+```javascript
+const engine = new AnalysisEngine();
+const findings = await engine.analyzeFiles(files);
+
+// Get only critical issues
+const critical = findings.filter(f => f.severity === 'critical');
+
+console.log(`Critical issues: ${critical.length}`);
+critical.forEach(finding => {
+  console.log(`❌ ${finding.filePath}:${finding.lineNumber}`);
+  console.log(`   ${finding.description}`);
+});
+```
+
+### Group by File
+
+```javascript
+const engine = new AnalysisEngine();
+const findings = await engine.analyzeFiles(files);
+
+// Group findings by file
+const byFile = findings.reduce((acc, finding) => {
+  if (!acc[finding.filePath]) {
+    acc[finding.filePath] = [];
+  }
+  acc[finding.filePath].push(finding);
+  return acc;
+}, {});
+
+// Print grouped results
+for (const [file, fileFindings] of Object.entries(byFile)) {
+  console.log(`\n${file}: ${fileFindings.length} issues`);
+  fileFindings.forEach(f => {
+    console.log(`  Line ${f.lineNumber}: ${f.description}`);
+  });
+}
+```
+
+### Error Handling
+
+```javascript
+const engine = new AnalysisEngine();
+
+try {
+  const findings = await engine.analyzeFile('./src/config.js');
+  console.log(`Analysis complete: ${findings.length} issues`);
+} catch (error) {
+  if (error.code === 'ENOENT') {
+    console.error('File not found');
+  } else if (error.code === 'EACCES') {
+    console.error('Permission denied');
+  } else {
+    console.error('Analysis error:', error.message);
+  }
+}
+```
+
+### Custom Analysis Pipeline
+
+```javascript
+const engine = new AnalysisEngine();
+
+async function customAnalysis(filePath) {
+  // Step 1: Analyze file
+  const findings = await engine.analyzeFile(filePath);
+
+  // Step 2: Filter and categorize
+  const critical = findings.filter(f => f.severity === 'critical');
+  const high = findings.filter(f => f.severity === 'high');
+  const others = findings.filter(f =>
+    f.severity !== 'critical' && f.severity !== 'high'
+  );
+
+  // Step 3: Take action based on findings
+  if (critical.length > 0) {
+    console.error('🚨 CRITICAL ISSUES - BLOCKING DEPLOYMENT');
+    return { blocked: true, findings: critical };
+  }
+
+  if (high.length > 0) {
+    console.warn('⚠️  HIGH SEVERITY ISSUES - REVIEW REQUIRED');
+    return { blocked: false, warning: true, findings: high };
+  }
+
+  console.log('✅ No critical or high severity issues');
+  return { blocked: false, findings: others };
+}
+
+const result = await customAnalysis('./src/config.js');
+```
+
+## Integration Examples
+
+### Complete Scan Pipeline
+
+```javascript
+const FileScanner = require('kafkacode/dist/FileScanner');
+const AnalysisEngine = require('kafkacode/dist/AnalysisEngine');
+const ReportGenerator = require('kafkacode/dist/ReportGenerator');
+
+async function fullScan(directory) {
+  // Step 1: Discover files
+  const scanner = new FileScanner(directory);
+  const files = scanner.scanFiles();
+  console.log(`Scanning ${files.length} files...`);
+
+  // Step 2: Analyze files
+  const engine = new AnalysisEngine(true);
+  const findings = await engine.analyzeFiles(files);
+
+  // Step 3: Generate report
+  const reporter = new ReportGenerator();
+  const report = reporter.generateReport(directory, findings, files.length);
+  console.log(report);
+
+  // Step 4: Return results
+  return {
+    filesScanned: files.length,
+    issuesFound: findings.length,
+    findings
+  };
+}
+
+fullScan('./src').then(results => {
+  process.exit(results.issuesFound > 0 ? 1 : 0);
+});
+```
+
+### Build Integration
+
+```javascript
+async function buildWithPrivacyScan() {
+  const scanner = new FileScanner('./src');
+  const engine = new AnalysisEngine();
+
+  const files = scanner.scanFiles();
+  const findings = await engine.analyzeFiles(files);
+
+  // Block build on critical issues
+  const critical = findings.filter(f => f.severity === 'critical');
+
+  if (critical.length > 0) {
+    console.error('❌ Build failed: Critical privacy issues detected');
+    critical.forEach(f => {
+      console.error(`  ${f.filePath}:${f.lineNumber} - ${f.description}`);
+    });
+    process.exit(1);
+  }
+
+  console.log('✅ Privacy scan passed. Continuing build...');
+  // ... continue with build
+}
+```
+
+### Continuous Monitoring
+
+```javascript
+const chokidar = require('chokidar');
+
+function watchAndScan(directory) {
+  const engine = new AnalysisEngine();
+
+  const watcher = chokidar.watch(`${directory}/**/*.{js,ts,py,java,go,rb,php}`, {
+    ignored: /node_modules|\.git/,
+    persistent: true
+  });
+
+  watcher.on('change', async (filePath) => {
+    console.log(`File changed: ${filePath}`);
+
+    const findings = await engine.analyzeFile(filePath);
+
+    if (findings.length > 0) {
+      console.warn(`⚠️  ${findings.length} issues in ${filePath}`);
+      findings.forEach(f => {
+        console.warn(`  Line ${f.lineNumber}: ${f.description}`);
+      });
+    } else {
+      console.log(`✅ No issues in ${filePath}`);
+    }
+  });
+
+  console.log(`Watching ${directory} for changes...`);
+}
+
+watchAndScan('./src');
+```
+
+## Performance Optimization
+
+<AccordionGroup>
+  <Accordion icon="gauge" title="Parallel Processing">
+    For better performance on large codebases:
+
+    ```javascript
+    async function parallelAnalysis(files, concurrency = 5) {
+      const engine = new AnalysisEngine();
+      const results = [];
+
+      for (let i = 0; i < files.length; i += concurrency) {
+        const batch = files.slice(i, i + concurrency);
+        const batchResults = await Promise.all(
+          batch.map(file => engine.analyzeFile(file))
+        );
+        results.push(...batchResults.flat());
+      }
+
+      return results;
+    }
+    ```
+  </Accordion>
+
+  <Accordion icon="memory" title="Memory Management">
+    For very large files:
+
+    ```javascript
+    async function analyzeWithLimit(files) {
+      const engine = new AnalysisEngine();
+      const findings = [];
+
+      for (const file of files) {
+        const stats = fs.statSync(file);
+
+        // Skip very large files (> 1MB)
+        if (stats.size > 1024 * 1024) {
+          console.warn(`Skipping large file: ${file}`);
+          continue;
+        }
+
+        const fileFindings = await engine.analyzeFile(file);
+        findings.push(...fileFindings);
+      }
+
+      return findings;
+    }
+    ```
+  </Accordion>
+
+  <Accordion icon="filter" title="Selective Analysis">
+    Analyze only changed files in git:
+
+    ```javascript
+    const { execSync } = require('child_process');
+
+    async function analyzeChangedFiles() {
+      const engine = new AnalysisEngine();
+
+      // Get changed files
+      const changed = execSync('git diff --name-only HEAD')
+        .toString()
+        .trim()
+        .split('\n')
+        .filter(f => /\.(js|ts|py|java|go|rb|php)$/.test(f));
+
+      const findings = await engine.analyzeFiles(changed);
+
+      return findings;
+    }
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## API Summary
+
+| Method | Parameters | Returns | Description |
+|--------|------------|---------|-------------|
+| `constructor(verbose)` | `verbose?: boolean` | `AnalysisEngine` | Create new instance |
+| `analyzeFile(filePath)` | `filePath: string` | `Promise<Finding[]>` | Analyze single file |
+| `analyzeFiles(filePaths)` | `filePaths: string[]` | `Promise<Finding[]>` | Analyze multiple files |
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card
+    title="PatternScanner"
+    icon="magnifying-glass"
+    href="/api-reference/pattern-scanner"
+  >
+    Learn about pattern detection
+  </Card>
+
+  <Card
+    title="LLMAnalyzer"
+    icon="brain"
+    href="/api-reference/llm-analyzer"
+  >
+    Explore AI-powered analysis
+  </Card>
+
+  <Card
+    title="ReportGenerator"
+    icon="file-alt"
+    href="/api-reference/report-generator"
+  >
+    Generate formatted reports
+  </Card>
+
+  <Card
+    title="Examples"
+    icon="book"
+    href="/examples/basic-scan"
+  >
+    See practical examples
+  </Card>
+</CardGroup>
