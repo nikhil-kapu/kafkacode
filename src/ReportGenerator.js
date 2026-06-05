@@ -1,4 +1,10 @@
 const chalk = require('chalk');
+const path = require('path');
+
+let VERSION = '0.0.0';
+try {
+    VERSION = require('../package.json').version;
+} catch (_) { /* fall back to the default */ }
 
 class ReportGenerator {
     constructor() {
@@ -64,6 +70,94 @@ class ReportGenerator {
         const color = colorMap[grade] || 'lightgrey';
         const url = `https://img.shields.io/badge/Privacy%20Grade-${encodeURIComponent(grade)}-${color}`;
         return { grade, url, markdown: `![Privacy Grade: ${grade}](${url})` };
+    }
+
+    // Public: render findings as a structured JSON report.
+    generateJson(scanDir, findings, fileCount) {
+        const severityCounts = { Critical: 0, High: 0, Medium: 0, Low: 0 };
+        for (const f of findings) {
+            const s = f.severity || 'Low';
+            if (Object.prototype.hasOwnProperty.call(severityCounts, s)) severityCounts[s]++;
+        }
+        const cwd = process.cwd();
+        const rel = (p) => (p ? path.relative(cwd, p).split(path.sep).join('/') : '');
+        const report = {
+            tool: 'kafkacode',
+            version: VERSION,
+            directory: scanDir,
+            timestamp: this.reportTime.toISOString(),
+            summary: {
+                filesScanned: fileCount,
+                totalIssues: findings.length,
+                grade: this._calculateGrade(findings),
+                severityCounts
+            },
+            findings: findings.map((f) => ({
+                file: rel(f.file_path),
+                line: f.line_number || 0,
+                severity: f.severity || 'Low',
+                type: f.finding_type || 'Issue',
+                description: f.description || '',
+                suggestion: f.suggestion || '',
+                source: f.source === 'llm' ? 'ai' : 'pattern',
+                snippet: f.code_snippet || ''
+            }))
+        };
+        return JSON.stringify(report, null, 2);
+    }
+
+    // Public: render findings as SARIF 2.1.0 (for GitHub code scanning).
+    generateSarif(findings) {
+        const cwd = process.cwd();
+        const rel = (p) => (p ? path.relative(cwd, p).split(path.sep).join('/') : 'unknown');
+        const levelFor = (sev) => {
+            if (sev === 'Critical' || sev === 'High') return 'error';
+            if (sev === 'Medium') return 'warning';
+            return 'note';
+        };
+        const slug = (s) => ((s || 'issue').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') || 'issue');
+
+        const rules = new Map();
+        for (const f of findings) {
+            const id = slug(f.finding_type);
+            if (!rules.has(id)) {
+                rules.set(id, {
+                    id,
+                    name: f.finding_type || 'Issue',
+                    shortDescription: { text: f.finding_type || 'Issue' },
+                    defaultConfiguration: { level: levelFor(f.severity) }
+                });
+            }
+        }
+
+        const results = findings.map((f) => ({
+            ruleId: slug(f.finding_type),
+            level: levelFor(f.severity),
+            message: { text: f.description || 'Privacy issue detected' },
+            locations: [{
+                physicalLocation: {
+                    artifactLocation: { uri: rel(f.file_path) },
+                    region: { startLine: Math.max(1, f.line_number || 1) }
+                }
+            }]
+        }));
+
+        const sarif = {
+            $schema: 'https://json.schemastore.org/sarif-2.1.0.json',
+            version: '2.1.0',
+            runs: [{
+                tool: {
+                    driver: {
+                        name: 'KafkaCode',
+                        informationUri: 'https://github.com/nikhil-kapu/kafkacode',
+                        version: VERSION,
+                        rules: Array.from(rules.values())
+                    }
+                },
+                results
+            }]
+        };
+        return JSON.stringify(sarif, null, 2);
     }
 
     _groupFindingsBySeverity(findings) {

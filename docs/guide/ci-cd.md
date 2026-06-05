@@ -21,6 +21,32 @@ jobs:
 
 **Inputs:** `path` (directory to scan, default `.`) and `verbose` (`true` / `false`).
 
+## GitHub code scanning (SARIF)
+
+Emit SARIF and upload it so findings appear in the **Security** tab and inline
+on pull requests:
+
+```yaml
+# .github/workflows/privacy.yml
+name: Privacy Scan
+on: [push, pull_request]
+permissions:
+  security-events: write
+  contents: read
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: npx kafkacode scan ./src --format sarif --output kafkacode.sarif --no-fail
+      - uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: kafkacode.sarif
+```
+
+`--no-fail` keeps the scan step green so the upload always runs; the findings
+still surface as code-scanning alerts.
+
 ## Any CI
 
 A non-zero exit fails the step, so a bare command is enough:

@@ -2,6 +2,14 @@
 
 All notable changes to this project are documented in this file.
 
+## [1.4.0] - 2026-06-05
+
+### Added
+- Machine-readable output: `--format json` and `--format sarif`.
+- SARIF 2.1.0 integrates with GitHub code scanning (Security tab + inline PR annotations).
+- `--output <file>` writes the report to a file instead of stdout.
+- `--no-fail` exits `0` even when issues are found (useful when uploading SARIF).
+
 ## [1.3.0] - 2026-06-05
 
 ### Added

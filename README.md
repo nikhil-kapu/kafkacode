@@ -195,7 +195,7 @@ deep secret scanners rather than replacing them.
 ## 🗺️ Roadmap
 
 - [x] **Bring-your-own-key AI** — call Groq / OpenAI-compatible providers directly
-- [ ] `--json` and **SARIF** output (GitHub Security tab integration)
+- [x] **`--json` & SARIF output** — SARIF integrates with the GitHub Security tab
 - [ ] Config file &amp; `.kafkacodeignore`
 - [ ] Baseline file to adopt on existing codebases
 - [ ] More file types (`.env`, YAML, Terraform, Dockerfiles)

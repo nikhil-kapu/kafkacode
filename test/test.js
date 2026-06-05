@@ -89,4 +89,35 @@ try {
     process.exit(1);
 }
 
+// Test 6: JSON output is valid and structured
+try {
+    const out = execSync('node src/cli.js scan test/fixtures --format json --no-fail', { encoding: 'utf8' });
+    const parsed = JSON.parse(out);
+    if (parsed.tool === 'kafkacode' && parsed.summary && parsed.summary.grade && Array.isArray(parsed.findings)) {
+        console.log('✅ Test 6: JSON output is valid');
+    } else {
+        console.log('❌ Test 6: unexpected JSON shape');
+        process.exit(1);
+    }
+} catch (error) {
+    console.log('❌ Test 6: JSON output failed:', error.message);
+    process.exit(1);
+}
+
+// Test 7: SARIF output is valid 2.1.0
+try {
+    const out = execSync('node src/cli.js scan test/fixtures --format sarif --no-fail', { encoding: 'utf8' });
+    const sarif = JSON.parse(out);
+    const driver = sarif.runs && sarif.runs[0] && sarif.runs[0].tool.driver;
+    if (sarif.version === '2.1.0' && driver && driver.name === 'KafkaCode' && Array.isArray(sarif.runs[0].results)) {
+        console.log('✅ Test 7: SARIF output is valid');
+    } else {
+        console.log('❌ Test 7: unexpected SARIF shape');
+        process.exit(1);
+    }
+} catch (error) {
+    console.log('❌ Test 7: SARIF output failed:', error.message);
+    process.exit(1);
+}
+
 console.log('\n🎉 All tests passed!');

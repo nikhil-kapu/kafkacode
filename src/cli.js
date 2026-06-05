@@ -12,7 +12,7 @@ const program = new Command();
 program
     .name('kafkacode')
     .description('KafkaCode - Privacy and Compliance Scanner')
-    .version('1.3.0');
+    .version('1.4.0');
 
 program
     .command('scan')
@@ -20,7 +20,10 @@ program
     .argument('<directory>', 'Path to the source code directory to scan')
     .option('-v, --verbose', 'Print verbose progress updates during the scan')
     .option('-b, --badge', 'Print a copy-paste privacy-grade badge for your README')
+    .option('-f, --format <format>', 'Output format: console, json, or sarif', 'console')
+    .option('-o, --output <file>', 'Write output to a file instead of stdout')
     .option('--no-ai', 'Disable AI-powered analysis (run pattern scan only)')
+    .option('--no-fail', 'Exit 0 even when issues are found')
     .action(async (directory, options) => {
         await runScan(directory, options);
     });
@@ -68,24 +71,43 @@ async function runScan(directory, options = {}) {
         }
         const findings = await analysisEngine.analyzeFiles(files);
 
-        // Generate and display report
-        const report = reportGenerator.generateReport(directory, findings, files.length);
-        console.log(report);
-
-        // Hint that AI analysis is available when it wasn't used.
-        if (options.ai !== false && !analysisEngine.aiEnabled()) {
-            console.log('💡 Tip: set KAFKACODE_API_KEY to enable AI-powered contextual analysis. See the README.\n');
+        // Render the findings in the requested format
+        const format = (options.format || 'console').toLowerCase();
+        let output;
+        if (format === 'json') {
+            output = reportGenerator.generateJson(directory, findings, files.length);
+        } else if (format === 'sarif') {
+            output = reportGenerator.generateSarif(findings);
+        } else if (format === 'console') {
+            output = reportGenerator.generateReport(directory, findings, files.length);
+        } else {
+            console.error(`Error: unknown --format '${options.format}'. Use 'console', 'json', or 'sarif'.`);
+            process.exit(1);
         }
 
-        // Optionally print a copy-paste privacy-grade badge for the user's README
-        if (options.badge) {
-            const badge = reportGenerator.getBadge(findings);
-            console.log('🏷️  Privacy Grade Badge — paste into your README:\n');
-            console.log(`    ${badge.markdown}\n`);
+        // Write to a file, or print to stdout
+        if (options.output) {
+            fs.writeFileSync(options.output, output);
+            console.error(`✅ Wrote ${format} output to ${options.output}`);
+        } else {
+            console.log(output);
         }
 
-        // Return appropriate exit code
-        process.exit(findings.length > 0 ? 1 : 0);
+        // Console-only extras — kept out of machine-readable output
+        if (format === 'console' && !options.output) {
+            if (options.ai !== false && !analysisEngine.aiEnabled()) {
+                console.log('💡 Tip: set KAFKACODE_API_KEY to enable AI-powered contextual analysis. See the README.\n');
+            }
+            if (options.badge) {
+                const badge = reportGenerator.getBadge(findings);
+                console.log('🏷️  Privacy Grade Badge — paste into your README:\n');
+                console.log(`    ${badge.markdown}\n`);
+            }
+        }
+
+        // Exit non-zero when issues are found, unless --no-fail was passed
+        const shouldFail = options.fail !== false && findings.length > 0;
+        process.exit(shouldFail ? 1 : 0);
 
     } catch (error) {
         if (error.name === 'AbortError' || error.message.includes('aborted')) {
