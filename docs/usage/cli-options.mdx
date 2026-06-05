@@ -24,6 +24,8 @@ kafkacode scan <directory> [options]
 
 **Options:**
 - `-v, --verbose` - Print verbose progress updates during the scan
+- `-b, --badge` - Print a copy-paste privacy-grade badge for your README
+- `--no-ai` - Disable AI-powered analysis (run pattern scan only)
 - `-h, --help` - Display help for the scan command
 
 **Examples:**
@@ -55,7 +57,7 @@ kafkacode -V
 
 **Output:**
 ```
-1.2.0
+1.3.0
 ```
 
 ### help
@@ -205,26 +207,26 @@ KafkaCode returns different exit codes based on scan results:
 
 ## Environment Variables
 
-While KafkaCode doesn't use environment variables for configuration, you can use them in scripts:
+Pattern-based scanning needs no configuration. AI-powered analysis is opt-in and
+configured via environment variables (bring-your-own-key):
+
+| Variable | Default | Purpose |
+| -------- | ------- | ------- |
+| `KAFKACODE_API_KEY` | _(unset)_ | Provider API key — **enables AI mode** |
+| `KAFKACODE_API_URL` | `https://api.groq.com/openai/v1` | OpenAI-compatible base URL |
+| `KAFKACODE_MODEL` | `llama-3.1-8b-instant` | Model name |
+| `KAFKACODE_BACKEND_ENDPOINT` | _(unset)_ | Optional self-hosted backend (takes precedence) |
 
 ```bash
-# Set scan directory via env var
-export SCAN_DIR="./src"
-kafkacode scan $SCAN_DIR
+# Enable AI analysis with your own key (free tier: https://console.groq.com/keys)
+export KAFKACODE_API_KEY=your_key_here
+kafkacode scan ./src
 
-# Conditional verbose mode
-export VERBOSE="true"
-if [ "$VERBOSE" = "true" ]; then
-  kafkacode scan ./src --verbose
-else
-  kafkacode scan ./src
-fi
-
-# CI environment detection
-if [ "$CI" = "true" ]; then
-  kafkacode scan . --verbose
-fi
+# Force pattern-only, even if a key is set
+kafkacode scan ./src --no-ai
 ```
+
+Without a key, KafkaCode runs pattern-only and never sends your code anywhere.
 
 ## Configuration Files
 

@@ -2,12 +2,23 @@
 
 All notable changes to this project are documented in this file.
 
-## [Unreleased]
+## [1.3.0] - 2026-06-05
+
+### Added
+- Bring-your-own-key AI analysis: set `KAFKACODE_API_KEY` to call an
+  OpenAI-compatible provider directly (defaults to Groq). `KAFKACODE_API_URL`
+  and `KAFKACODE_MODEL` override the endpoint and model.
+- `--badge` flag that prints a shareable privacy-grade badge for your README.
+- `--no-ai` flag to force pattern-only scanning.
 
 ### Changed
 - Open-sourced under the MIT License.
-- AI backend is now configured purely via the `KAFKACODE_BACKEND_ENDPOINT`
-  environment variable (removed legacy build-time key handling).
+- AI analysis is now opt-in. With no key configured, scanning is pattern-only
+  and fully offline — no code leaves the machine.
+
+### Removed
+- Silent "mock" analysis fallback; on an API error the snippet is now skipped
+  instead of fabricating findings.
 
 ## [1.2.0] - 2025-10-05
 
