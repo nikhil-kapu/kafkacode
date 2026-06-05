@@ -1,98 +1,196 @@
-# KafkaCode Privacy Scanner
-
 <div align="center">
-  <h3>by <a href="https://kafkalabs.com">KafkaLabs</a></h3>
-  <p>🔐 <strong>Shift-left privacy and compliance scanner for source code</strong></p>
-  <p>
-    <a href="https://kafkalabs.com/kafka-code">Website</a> •
-    <a href="https://github.com/nikhil-kapu/kafkacode">GitHub</a> •
-    <a href="https://www.npmjs.com/package/kafkacode">npm</a>
-  </p>
+
+<img src="docs/logo4.png" width="104" alt="KafkaCode logo" />
+
+# KafkaCode
+
+**Catch PII leaks, hardcoded secrets, and compliance risks before they ship.**
+
+An AI-powered privacy &amp; compliance scanner for your source code. One command,
+a clear **A+ → F privacy grade**, and CI-ready exit codes. Runs in seconds.
+
+[![npm version](https://img.shields.io/npm/v/kafkacode.svg?color=cb3837&logo=npm)](https://www.npmjs.com/package/kafkacode)
+[![npm downloads](https://img.shields.io/npm/dm/kafkacode.svg?color=cb3837)](https://www.npmjs.com/package/kafkacode)
+[![CI](https://img.shields.io/github/actions/workflow/status/nikhil-kapu/kafkacode/ci.yml?branch=main&label=CI&logo=github)](https://github.com/nikhil-kapu/kafkacode/actions)
+[![license](https://img.shields.io/npm/l/kafkacode.svg?color=blue)](LICENSE)
+[![node](https://img.shields.io/node/v/kafkacode.svg?color=339933&logo=node.js)](package.json)
+[![PRs welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
+
+[Quickstart](#-quickstart) · [Features](#-features) · [Example](#-example-output) · [CI/CD](#-cicd-integration) · [How it works](#-how-it-works) · [Contributing](#-contributing)
+
 </div>
 
 ---
 
-KafkaCode is an AI-powered privacy scanner by **KafkaLabs** that helps developers identify potential privacy issues, PII leaks, and compliance violations in their source code before they reach production.
+## Why KafkaCode?
 
-## Features
+Most scanners stop at *"you leaked an AWS key."* KafkaCode goes further — it grades how
+your code handles **personal data**, flags **GDPR/CCPA** risks, and catches hardcoded
+secrets, with an optional **AI pass** for the context that regex alone can't see.
 
-- 🔍 **Pattern-based Detection**: Identifies hardcoded secrets, API keys, and sensitive data
-- 🤖 **AI-powered Analysis**: Uses advanced LLM analysis for contextual privacy issues
-- ⚡ **Fast & Efficient**: Scans entire codebases in seconds
-- 🎯 **Multiple File Types**: Supports Python, JavaScript, TypeScript, Java, Go, Ruby, PHP
-- 📊 **Detailed Reports**: Beautiful console reports with severity levels
-- 🚀 **CI/CD Ready**: Easy integration with build pipelines
-
-## Installation
+You get one number a whole team understands — a **privacy grade from A+ to F** — plus a
+non-zero exit code that fails the build when something sensitive slips in.
 
 ```bash
+npx kafkacode scan .
+```
+
+No install. No signup. No config.
+
+## ⚡ Quickstart
+
+```bash
+# Run it once, anywhere (no install)
+npx kafkacode scan .
+
+# Or install globally
 npm install -g kafkacode
+kafkacode scan ./src --verbose
 ```
 
-Or using npx (no installation required):
-```bash
-npx kafkacode scan /path/to/your/project
-```
+## ✨ Features
 
-## Usage
+- 🔑 **Secret detection** — AWS & Stripe keys, private keys, high-entropy strings
+- 🕵️ **PII detection** — emails, phone numbers, IP addresses
+- 🤖 **AI-powered analysis** — contextual privacy issues a regex would miss
+- 🎓 **Privacy grade** — a single, shareable **A+ → F** score
+- 🏷️ **Grade badge** — drop your score into your README (`--badge`)
+- ⚡ **Fast & offline** — pattern scanning needs no network
+- 🌐 **7 languages** — Python, JavaScript, TypeScript, Java, Go, Ruby, PHP
+- 🚀 **CI/CD ready** — clean exit codes + a one-line GitHub Action
 
-**Basic Scan:**
-```bash
-kafkacode scan /path/to/your/project
-```
+## 📊 Example output
 
-**Verbose Output:**
-```bash
-kafkacode scan /path/to/your/project --verbose
-```
-
-## What it detects
-
-- **Critical Issues**: AWS keys, Stripe keys, Private keys
-- **High Severity**: Sensitive keywords in assignment context
-- **Medium Severity**: Email addresses, Phone numbers, High entropy strings
-- **Low Severity**: IP addresses, URLs
-
-## Privacy Grade
-
-KafkaCode assigns a privacy grade (A+ to F) based on the severity and number of issues found:
-
-- **A+/A/A-**: Excellent privacy practices
-- **B+/B/B-**: Good privacy practices with minor issues
-- **C+/C/C-**: Moderate privacy issues that should be addressed
-- **D**: Multiple high-severity privacy issues
-- **F**: Critical privacy vulnerabilities detected
-
-## Example Output
-
-```
+```text
 🎯 PRIVACY SCAN REPORT
-═══════════════════════════════════════
+════════════════════════════════════════════════════════════════
 
 📊 SCAN SUMMARY
-📁 Directory: ./src
-⏰ Timestamp: 2024-01-15 10:30:45
-📄 Files Scanned: 25
-🔍 Total Issues: 3
-🏆 Privacy Grade: 🟡B-
+   📁 Directory:      ./src
+   📄 Files Scanned:  18
+   🔍 Total Issues:   4
+   🏆 Privacy Grade:  🔴 F
+
+   🚨 Critical: 1    🔥 High: 1    ⚠️  Medium: 2    🔵 Low: 0
+
+🚨 CRITICAL
+  ┌─ AWS Access Key ID detected
+  │  📍 src/config.js:12
+  │  💡 Move credentials to environment variables or a secrets manager.
+  └─
+
+⚠️  MEDIUM
+  ┌─ Email address detected (PII)
+  │  📍 src/users.js:47
+  │  💡 Avoid hardcoding personal data; load it at runtime.
+  └─
 ```
 
-## License
+## 🏷️ Privacy grade & badge
 
-MIT License - Copyright (c) 2025 KafkaLabs
+KafkaCode distills every scan into one grade:
 
-See [LICENSE](LICENSE) file for details.
+| Grade | Meaning |
+| :---: | ------- |
+| 🟢 **A+ / A / A-** | Excellent — no or only low-severity issues |
+| 🟡 **B+ / B / B-** | Good — a few medium-severity issues |
+| 🟠 **C+ / C / C-** | Needs attention — high-severity issues present |
+| 🔴 **D / F** | Critical privacy/secret exposure |
 
-## About KafkaLabs
+Show it off in your own README:
 
-KafkaCode is built by [KafkaLabs](https://kafkalabs.com), helping developers build privacy-first applications.
+```bash
+kafkacode scan . --badge
+```
 
-- 🌐 **Website**: [kafkalabs.com/kafka-code](https://kafkalabs.com/kafka-code)
-- 📧 **Contact**: contact@kafkalabs.com
-- 💬 **Issues**: [GitHub Issues](https://github.com/nikhil-kapu/kafkacode/issues)
+```text
+🏷️  Privacy Grade Badge — paste into your README:
 
----
+    ![Privacy Grade: A+](https://img.shields.io/badge/Privacy%20Grade-A%2B-brightgreen)
+```
+
+→ ![Privacy Grade: A+](https://img.shields.io/badge/Privacy%20Grade-A%2B-brightgreen)
+
+## 🚀 CI/CD integration
+
+### GitHub Action
+
+```yaml
+# .github/workflows/privacy.yml
+name: Privacy Scan
+on: [push, pull_request]
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: nikhil-kapu/kafkacode@v1
+        with:
+          path: ./src
+```
+
+### Any CI / pre-commit
+
+```bash
+# Exits non-zero when issues are found, failing the build
+npx kafkacode scan ./src
+```
+
+## 🔍 What it detects
+
+| Severity | Examples |
+| -------- | -------- |
+| 🚨 **Critical** | AWS keys, Stripe live keys, private keys |
+| 🔥 **High** | `password=`, `api_key=`, `token=` and other secrets in assignments |
+| ⚠️ **Medium** | Emails, phone numbers, high-entropy strings |
+| 🔵 **Low** | IP addresses |
+
+## 🧠 How it works
+
+```
+ your code ─▶ FileScanner ─▶ ┌─ PatternScanner  (regex, fully offline)
+                             └─ LLMAnalyzer     (optional AI context)
+                                      │
+                                      ▼
+                          ReportGenerator ─▶ grade + findings + exit code
+```
+
+Pattern-based detection runs entirely on your machine with no network calls. The
+optional AI layer adds contextual findings for the cases static rules can't catch.
+
+## 🆚 How it compares
+
+|                              | KafkaCode | gitleaks / trufflehog | semgrep |
+| ---------------------------- | :-------: | :-------------------: | :-----: |
+| Hardcoded secrets            |     ✅    |   ✅ (deep, git log)  |   ➖    |
+| PII / personal-data findings |     ✅    |          ➖           |   ➖    |
+| Privacy grade (A+ → F)       |     ✅    |          ➖           |   ➖    |
+| AI contextual analysis       |     ✅    |          ➖           |   ➖    |
+| Zero-config, one command     |     ✅    |          ✅           |   ➖    |
+
+KafkaCode focuses on **privacy and developer-friendly grading** — it complements
+deep secret scanners rather than replacing them.
+
+## 🗺️ Roadmap
+
+- [ ] Bring-your-own-key / local-model AI (no hosted backend required)
+- [ ] `--json` and **SARIF** output (GitHub Security tab integration)
+- [ ] Config file &amp; `.kafkacodeignore`
+- [ ] Baseline file to adopt on existing codebases
+- [ ] More file types (`.env`, YAML, Terraform, Dockerfiles)
+
+Ideas and PRs welcome — see [CONTRIBUTING.md](CONTRIBUTING.md).
+
+## 🤝 Contributing
+
+Contributions of all kinds are welcome — bug reports, new detection patterns, and docs.
+Start with [CONTRIBUTING.md](CONTRIBUTING.md), and please report security issues per our
+[Security Policy](SECURITY.md).
+
+## 📄 License
+
+[MIT](LICENSE) © KafkaLabs
 
 <div align="center">
-  Made with ❤️ by <a href="https://kafkalabs.com">KafkaLabs</a>
+<sub>🛡️ Keep your code secure, keep your users safe.</sub>
 </div>

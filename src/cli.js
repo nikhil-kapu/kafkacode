@@ -19,6 +19,7 @@ program
     .description('Scan a directory for privacy issues')
     .argument('<directory>', 'Path to the source code directory to scan')
     .option('-v, --verbose', 'Print verbose progress updates during the scan')
+    .option('-b, --badge', 'Print a copy-paste privacy-grade badge for your README')
     .action(async (directory, options) => {
         await runScan(directory, options);
     });
@@ -66,6 +67,13 @@ async function runScan(directory, options = {}) {
         // Generate and display report
         const report = reportGenerator.generateReport(directory, findings, files.length);
         console.log(report);
+
+        // Optionally print a copy-paste privacy-grade badge for the user's README
+        if (options.badge) {
+            const badge = reportGenerator.getBadge(findings);
+            console.log('🏷️  Privacy Grade Badge — paste into your README:\n');
+            console.log(`    ${badge.markdown}\n`);
+        }
 
         // Return appropriate exit code
         process.exit(findings.length > 0 ? 1 : 0);

@@ -56,4 +56,20 @@ try {
     }
 }
 
+// Test 4: privacy-grade badge generation
+try {
+    const ReportGenerator = require('../src/ReportGenerator');
+    const rg = new ReportGenerator();
+    const badge = rg.getBadge([{ severity: 'Critical' }]);
+    if (badge.grade === 'F' && badge.url.includes('img.shields.io') && badge.markdown.includes('Privacy Grade')) {
+        console.log('✅ Test 4: Privacy-grade badge generation works');
+    } else {
+        console.log('❌ Test 4: unexpected badge output:', badge);
+        process.exit(1);
+    }
+} catch (error) {
+    console.log('❌ Test 4: badge test failed:', error.message);
+    process.exit(1);
+}
+
 console.log('\n🎉 All tests passed!');

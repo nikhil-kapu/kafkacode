@@ -47,6 +47,25 @@ class ReportGenerator {
         }
     }
 
+    // Public: return the privacy grade (A+ .. F) for a set of findings.
+    getGrade(findings) {
+        return this._calculateGrade(findings);
+    }
+
+    // Public: build a shields.io privacy-grade badge for embedding in a README.
+    getBadge(findings) {
+        const grade = this._calculateGrade(findings);
+        const colorMap = {
+            'A+': 'brightgreen', 'A': 'brightgreen', 'A-': 'green',
+            'B+': 'yellowgreen', 'B': 'yellowgreen', 'B-': 'yellow',
+            'C+': 'yellow', 'C': 'orange', 'C-': 'orange',
+            'D': 'red', 'F': 'red'
+        };
+        const color = colorMap[grade] || 'lightgrey';
+        const url = `https://img.shields.io/badge/Privacy%20Grade-${encodeURIComponent(grade)}-${color}`;
+        return { grade, url, markdown: `![Privacy Grade: ${grade}](${url})` };
+    }
+
     _groupFindingsBySeverity(findings) {
         const groups = {};
         this.severityOrder.forEach(severity => {
