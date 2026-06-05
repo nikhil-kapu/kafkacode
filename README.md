@@ -16,7 +16,7 @@ a clear **A+ → F privacy grade**, and CI-ready exit codes. Runs in seconds.
 [![node](https://img.shields.io/node/v/kafkacode.svg?color=339933&logo=node.js)](package.json)
 [![PRs welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
 
-[Quickstart](#-quickstart) · [Features](#-features) · [Example](#-example-output) · [CI/CD](#-cicd-integration) · [How it works](#-how-it-works) · [Contributing](#-contributing)
+[📖 Documentation](https://nikhil-kapu.github.io/kafkacode/) · [Quickstart](#-quickstart) · [Features](#-features) · [CI/CD](#-cicd-integration) · [Contributing](#-contributing)
 
 </div>
 
