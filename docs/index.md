@@ -3,8 +3,8 @@ layout: home
 
 hero:
   name: KafkaCode
-  text: Privacy & compliance scanner
-  tagline: Catch PII leaks, hardcoded secrets, and compliance risks before they ship.
+  text: Open-source privacy code scanner
+  tagline: Local-first PII scanner and secret detection CLI for source code, CI/CD, GDPR, CCPA, and SARIF workflows.
   image:
     src: /logo4.png
     alt: KafkaCode
@@ -35,6 +35,9 @@ features:
   - icon: 🚀
     title: CI/CD ready
     details: Clean exit codes and a one-line GitHub Action.
+  - icon: 📄
+    title: SARIF output
+    details: Send privacy and secret findings to GitHub code scanning.
 ---
 
 ## Try it in one command
@@ -44,3 +47,11 @@ npx kafkacode scan .
 ```
 
 No install, no signup, no config. Want the AI layer? [Bring your own key.](/guide/ai-mode)
+
+## Popular guides
+
+- [PII scanner for source code](/guide/pii-scanner-for-source-code)
+- [Secret scanning in CI/CD](/guide/secret-scanning-in-ci-cd)
+- [GDPR code scanning](/guide/gdpr-code-scanning)
+- [SARIF privacy scanner](/guide/sarif-privacy-scanner)
+- [Local-first privacy scanner](/guide/local-first-privacy-scanner)

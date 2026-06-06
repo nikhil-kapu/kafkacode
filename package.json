@@ -1,7 +1,7 @@
 {
   "name": "kafkacode",
   "version": "1.4.0",
-  "description": "AI-powered privacy and compliance scanner - find PII leaks, hardcoded secrets, and compliance violations in your source code",
+  "description": "Open-source, local-first privacy code scanner for PII leaks, hardcoded secrets, GDPR/CCPA compliance, SARIF, and CI/CD",
   "main": "dist/index.js",
   "bin": {
     "kafkacode": "dist/cli.js"
@@ -21,13 +21,27 @@
     "gdpr",
     "ccpa",
     "secret-detection",
+    "secret-scanning",
+    "secrets-scanner",
+    "secrets",
+    "pii-detection",
     "code-analysis",
     "privacy-scanner",
+    "privacy-code-scanner",
     "ai-powered",
     "shift-left",
     "cli-tool",
     "security-scanner",
-    "vulnerability-scanner"
+    "vulnerability-scanner",
+    "data-loss-prevention",
+    "dlp",
+    "gdpr-compliance",
+    "ccpa-compliance",
+    "sarif",
+    "github-actions",
+    "devsecops",
+    "appsec",
+    "data-privacy"
   ],
   "author": "KafkaLabs <contact@kafkalabs.com>",
   "license": "MIT",

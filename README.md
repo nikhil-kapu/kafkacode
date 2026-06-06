@@ -2,12 +2,11 @@
 
 <img src="docs/logo4.png" width="104" alt="KafkaCode logo" />
 
-# KafkaCode
+# KafkaCode - Open-Source Privacy Code Scanner
 
-**Catch PII leaks, hardcoded secrets, and compliance risks before they ship.**
+**Local-first PII scanner and secret detection CLI for source code, CI/CD, GDPR, CCPA, and SARIF workflows.**
 
-An AI-powered privacy &amp; compliance scanner for your source code. One command,
-a clear **A+ → F privacy grade**, and CI-ready exit codes. Runs in seconds.
+KafkaCode catches PII leaks, hardcoded secrets, and privacy compliance risks before they ship. One command gives you a clear **A+ → F privacy grade**, CI-ready exit codes, JSON/SARIF output, and optional BYO-key AI analysis.
 
 [![npm version](https://img.shields.io/npm/v/kafkacode.svg?color=cb3837&logo=npm)](https://www.npmjs.com/package/kafkacode)
 [![npm downloads](https://img.shields.io/npm/dm/kafkacode.svg?color=cb3837)](https://www.npmjs.com/package/kafkacode)
@@ -26,7 +25,8 @@ a clear **A+ → F privacy grade**, and CI-ready exit codes. Runs in seconds.
 
 Most scanners stop at *"you leaked an AWS key."* KafkaCode goes further — it grades how
 your code handles **personal data**, flags **GDPR/CCPA** risks, and catches hardcoded
-secrets, with an optional **AI pass** for the context that regex alone can't see.
+secrets with a local-first pattern scanner and an optional **AI pass** for the context
+that regex alone can't see.
 
 You get one number a whole team understands — a **privacy grade from A+ to F** — plus a
 non-zero exit code that fails the build when something sensitive slips in.
@@ -52,10 +52,12 @@ kafkacode scan ./src --verbose
 
 - 🔑 **Secret detection** — AWS & Stripe keys, private keys, high-entropy strings
 - 🕵️ **PII detection** — emails, phone numbers, IP addresses
+- 🛡️ **Privacy compliance scanning** — source-code checks for GDPR, CCPA, and data privacy risks
 - 🤖 **AI-powered analysis** — contextual privacy issues a regex would miss
 - 🎓 **Privacy grade** — a single, shareable **A+ → F** score
 - 🏷️ **Grade badge** — drop your score into your README (`--badge`)
 - ⚡ **Fast & offline** — pattern scanning needs no network
+- 📄 **SARIF & JSON output** — integrate with GitHub code scanning and security dashboards
 - 🌐 **7 languages** — Python, JavaScript, TypeScript, Java, Go, Ruby, PHP
 - 🚀 **CI/CD ready** — clean exit codes + a one-line GitHub Action
 
@@ -187,10 +189,19 @@ Pass `--no-ai` to force pattern-only even when a key is set.
 | PII / personal-data findings |     ✅    |          ➖           |   ➖    |
 | Privacy grade (A+ → F)       |     ✅    |          ➖           |   ➖    |
 | AI contextual analysis       |     ✅    |          ➖           |   ➖    |
+| SARIF output                 |     ✅    |          ➖           |   ✅    |
 | Zero-config, one command     |     ✅    |          ✅           |   ➖    |
 
 KafkaCode focuses on **privacy and developer-friendly grading** — it complements
 deep secret scanners rather than replacing them.
+
+## 📚 Guides
+
+- [PII scanner for source code](https://nikhil-kapu.github.io/kafkacode/guide/pii-scanner-for-source-code)
+- [Secret scanning in CI/CD](https://nikhil-kapu.github.io/kafkacode/guide/secret-scanning-in-ci-cd)
+- [GDPR code scanning](https://nikhil-kapu.github.io/kafkacode/guide/gdpr-code-scanning)
+- [SARIF privacy scanner](https://nikhil-kapu.github.io/kafkacode/guide/sarif-privacy-scanner)
+- [Local-first privacy scanner](https://nikhil-kapu.github.io/kafkacode/guide/local-first-privacy-scanner)
 
 ## 🗺️ Roadmap
 
