@@ -7,7 +7,9 @@ try {
 } catch (_) { /* fall back to the default */ }
 
 class ReportGenerator {
-    constructor() {
+    constructor(options = {}) {
+        this.showSecrets = options.showSecrets === true;
+        this.plain = options.plain === true;
         this.reportTime = new Date();
         this.severityIcons = {
             'Critical': '🚨',
@@ -72,6 +74,41 @@ class ReportGenerator {
         return { grade, url, markdown: `![Privacy Grade: ${grade}](${url})` };
     }
 
+    _maskValue(value) {
+        if (!value) return value;
+        if (this.showSecrets) return value;
+        if (value.length <= 6) return '[REDACTED]';
+        return `${value.slice(0, 3)}...[REDACTED]...${value.slice(-3)}`;
+    }
+
+    _sanitizeSnippet(finding) {
+        const snippet = finding.code_snippet || '';
+        if (this.showSecrets || !snippet) return snippet;
+
+        let sanitized = snippet;
+        if (finding.matched_text) {
+            sanitized = sanitized.split(finding.matched_text).join(this._maskValue(finding.matched_text));
+        }
+
+        // Defense in depth for snippets from contextual AI findings.
+        sanitized = sanitized
+            .replace(/\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b/g, '[EMAIL_REDACTED]')
+            .replace(/\b\d{3}[-.]?\d{3}[-.]?\d{4}\b/g, '[PHONE_REDACTED]')
+            .replace(/\b\(\d{3}\)\s?\d{3}[-.]?\d{4}\b/g, '[PHONE_REDACTED]')
+            .replace(/\b((?:ghp|gho|ghu|ghs|ghr)_[A-Za-z0-9_]{20,}|github_pat_[A-Za-z0-9_]{20,})\b/g, '[TOKEN_REDACTED]')
+            .replace(/\b(sk-(?:proj-)?[A-Za-z0-9_-]{24,}|sk-ant-[A-Za-z0-9_-]{24,})\b/g, '[API_KEY_REDACTED]')
+            .replace(/\b(AKIA[0-9A-Z]{16})\b/g, '[AWS_ACCESS_KEY_REDACTED]')
+            .replace(/\b((?:postgres(?:ql)?|mysql|mongodb(?:\+srv)?|redis):\/\/[^\s"']+:[^\s"']+@[^\s"']+)/gi, '[DATABASE_URL_REDACTED]');
+
+        return sanitized;
+    }
+
+    _displayPath(filePath) {
+        if (!filePath) return 'Unknown';
+        const relative = path.relative(process.cwd(), filePath).split(path.sep).join('/');
+        return relative && !relative.startsWith('..') ? relative : filePath;
+    }
+
     // Public: render findings as a structured JSON report.
     generateJson(scanDir, findings, fileCount) {
         const severityCounts = { Critical: 0, High: 0, Medium: 0, Low: 0 };
@@ -93,14 +130,17 @@ class ReportGenerator {
                 severityCounts
             },
             findings: findings.map((f) => ({
+                ruleId: f.rule_id || '',
                 file: rel(f.file_path),
                 line: f.line_number || 0,
                 severity: f.severity || 'Low',
                 type: f.finding_type || 'Issue',
                 description: f.description || '',
                 suggestion: f.suggestion || '',
+                confidence: f.confidence || 'Medium',
                 source: f.source === 'llm' ? 'ai' : 'pattern',
-                snippet: f.code_snippet || ''
+                fingerprint: f.fingerprint || '',
+                snippet: this._sanitizeSnippet(f)
             }))
         };
         return JSON.stringify(report, null, 2);
@@ -119,19 +159,23 @@ class ReportGenerator {
 
         const rules = new Map();
         for (const f of findings) {
-            const id = slug(f.finding_type);
+            const id = f.rule_id || slug(f.finding_type);
             if (!rules.has(id)) {
                 rules.set(id, {
                     id,
                     name: f.finding_type || 'Issue',
-                    shortDescription: { text: f.finding_type || 'Issue' },
-                    defaultConfiguration: { level: levelFor(f.severity) }
+                    shortDescription: { text: f.description || f.finding_type || 'Issue' },
+                    defaultConfiguration: { level: levelFor(f.severity) },
+                    properties: {
+                        confidence: f.confidence || 'Medium',
+                        category: f.finding_type || 'Issue'
+                    }
                 });
             }
         }
 
         const results = findings.map((f) => ({
-            ruleId: slug(f.finding_type),
+            ruleId: f.rule_id || slug(f.finding_type),
             level: levelFor(f.severity),
             message: { text: f.description || 'Privacy issue detected' },
             locations: [{
@@ -139,7 +183,14 @@ class ReportGenerator {
                     artifactLocation: { uri: rel(f.file_path) },
                     region: { startLine: Math.max(1, f.line_number || 1) }
                 }
-            }]
+            }],
+            partialFingerprints: f.fingerprint ? { kafkacode: f.fingerprint } : undefined,
+            properties: {
+                severity: f.severity || 'Low',
+                confidence: f.confidence || 'Medium',
+                source: f.source === 'llm' ? 'ai' : 'pattern',
+                snippet: this._sanitizeSnippet(f)
+            }
         }));
 
         const sarif = {
@@ -186,7 +237,64 @@ class ReportGenerator {
         return colors[grade] || '⚪';
     }
 
+    _countSeverities(findings) {
+        const severityCounts = {};
+        this.severityOrder.forEach(severity => {
+            severityCounts[severity] = 0;
+        });
+
+        for (const finding of findings) {
+            const severity = finding.severity || 'Low';
+            if (severityCounts.hasOwnProperty(severity)) {
+                severityCounts[severity]++;
+            }
+        }
+
+        return severityCounts;
+    }
+
+    generatePlainReport(scanDir, findings, fileCount) {
+        const severityCounts = this._countSeverities(findings);
+        const grade = this._calculateGrade(findings);
+        const lines = [
+            `KafkaCode Privacy Scan`,
+            `Directory: ${scanDir}`,
+            `Files scanned: ${fileCount}`,
+            `Issues: ${findings.length}`,
+            `Privacy grade: ${grade}`,
+            `Severity: Critical ${severityCounts.Critical}, High ${severityCounts.High}, Medium ${severityCounts.Medium}, Low ${severityCounts.Low}`,
+            ''
+        ];
+
+        if (!findings.length) {
+            lines.push('No privacy issues detected.');
+            return lines.join('\n');
+        }
+
+        const groupedFindings = this._groupFindingsBySeverity(findings);
+        for (const severity of this.severityOrder) {
+            const severityFindings = groupedFindings[severity];
+            if (!severityFindings.length) continue;
+
+            lines.push(`${severity.toUpperCase()}`);
+            for (const finding of severityFindings) {
+                lines.push(`- ${this._displayPath(finding.file_path)}:${finding.line_number || 0} ${finding.rule_id || 'N/A'} ${finding.description || 'Privacy issue detected'}`);
+                lines.push(`  ${this._sanitizeSnippet(finding) || 'N/A'}`);
+                if (finding.suggestion) {
+                    lines.push(`  Suggestion: ${finding.suggestion}`);
+                }
+            }
+            lines.push('');
+        }
+
+        return lines.join('\n');
+    }
+
     generateReport(scanDir, findings, fileCount) {
+        if (this.plain) {
+            return this.generatePlainReport(scanDir, findings, fileCount);
+        }
+
         const reportLines = [];
 
         // ASCII Art Header
@@ -212,17 +320,7 @@ class ReportGenerator {
         );
 
         // Summary box
-        const severityCounts = {};
-        this.severityOrder.forEach(severity => {
-            severityCounts[severity] = 0;
-        });
-
-        for (const finding of findings) {
-            const severity = finding.severity || 'Low';
-            if (severityCounts.hasOwnProperty(severity)) {
-                severityCounts[severity]++;
-            }
-        }
+        const severityCounts = this._countSeverities(findings);
 
         const grade = this._calculateGrade(findings);
         const gradeColor = this._getGradeColor(grade);
@@ -296,12 +394,14 @@ class ReportGenerator {
                         `┌── Issue #${i + 1} ──────────────────────────────────────────────────────────`,
                         `│ ${icon} ${finding.description || 'Privacy issue detected'}`,
                         '│',
-                        `│ 📍 Location: ${finding.file_path || 'Unknown'}:${finding.line_number || 0}`,
+                        `│ 📍 Location: ${this._displayPath(finding.file_path)}:${finding.line_number || 0}`,
                         `│ 🚨 Severity: ${finding.severity || 'Unknown'}`,
+                        `│ 🎚️  Confidence: ${finding.confidence || 'Medium'}`,
+                        `│ 🧩 Rule: ${finding.rule_id || 'N/A'}`,
                         `│ 🔎 Detection: ${sourceBadge}`,
                         '│',
                         '│ 💾 Code:',
-                        `│    ${(finding.line_number || 0).toString().padStart(3)} │ ${finding.code_snippet || 'N/A'}`
+                        `│    ${(finding.line_number || 0).toString().padStart(3)} │ ${this._sanitizeSnippet(finding) || 'N/A'}`
                     );
 
                     if (finding.suggestion) {

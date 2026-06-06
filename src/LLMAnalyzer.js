@@ -250,12 +250,15 @@ ${codeSnippet}`;
                 findings.push({
                     file_path: filePath,
                     line_number: vuln.line_number || startLine,
+                    rule_id: 'KC_AI_CONTEXT',
                     severity: vuln.severity || 'Medium',
                     finding_type: 'Context-Based Issue',
                     description: vuln.description || 'Privacy vulnerability detected',
+                    confidence: vuln.confidence || 'Medium',
                     code_snippet: this._getCodeSnippet(content, vuln.line_number || startLine),
                     suggestion: vuln.suggestion || 'Review and address the identified issue.',
-                    source: 'llm'
+                    source: 'llm',
+                    secret: false
                 });
             }
 

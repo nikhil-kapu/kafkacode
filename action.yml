@@ -9,16 +9,64 @@ inputs:
     description: 'Directory to scan'
     required: false
     default: '.'
+  version:
+    description: 'KafkaCode npm package version to run'
+    required: false
+    default: 'latest'
   verbose:
     description: 'Print verbose progress output (true/false)'
     required: false
     default: 'false'
+  format:
+    description: 'Output format: console, json, or sarif'
+    required: false
+    default: 'console'
+  output:
+    description: 'Write output to a file instead of stdout'
+    required: false
+    default: ''
+  min-severity:
+    description: 'Minimum severity to report: low, medium, high, critical'
+    required: false
+    default: 'low'
+  fail-on:
+    description: 'Fail when findings are at least this severity'
+    required: false
+    default: 'low'
+  no-fail:
+    description: 'Exit 0 even when findings are present (true/false)'
+    required: false
+    default: 'false'
+  no-ai:
+    description: 'Disable AI-powered analysis (true/false)'
+    required: false
+    default: 'false'
+  plain:
+    description: 'Use compact console output (true/false)'
+    required: false
+    default: 'false'
+  show-secrets:
+    description: 'Show unredacted snippets in output (true/false)'
+    required: false
+    default: 'false'
+  exclude:
+    description: 'Newline-separated glob patterns to exclude'
+    required: false
+    default: ''
 runs:
   using: 'composite'
   steps:
     - name: Run KafkaCode privacy scan
       shell: bash
       run: |
-        ARGS="scan ${{ inputs.path }}"
-        if [ "${{ inputs.verbose }}" = "true" ]; then ARGS="$ARGS --verbose"; fi
-        npx --yes kafkacode@latest $ARGS
+        ARGS=(scan "${{ inputs.path }}" --format "${{ inputs.format }}" --min-severity "${{ inputs['min-severity'] }}" --fail-on "${{ inputs['fail-on'] }}")
+        if [ -n "${{ inputs.output }}" ]; then ARGS+=(--output "${{ inputs.output }}"); fi
+        if [ "${{ inputs.verbose }}" = "true" ]; then ARGS+=(--verbose); fi
+        if [ "${{ inputs['no-fail'] }}" = "true" ]; then ARGS+=(--no-fail); fi
+        if [ "${{ inputs['no-ai'] }}" = "true" ]; then ARGS+=(--no-ai); fi
+        if [ "${{ inputs.plain }}" = "true" ]; then ARGS+=(--plain); fi
+        if [ "${{ inputs['show-secrets'] }}" = "true" ]; then ARGS+=(--show-secrets); fi
+        while IFS= read -r pattern; do
+          if [ -n "$pattern" ]; then ARGS+=(--exclude "$pattern"); fi
+        done <<< "${{ inputs.exclude }}"
+        npx --yes "kafkacode@${{ inputs.version }}" "${ARGS[@]}"

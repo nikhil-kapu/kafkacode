@@ -17,9 +17,25 @@ jobs:
       - uses: nikhil-kapu/kafkacode@v1
         with:
           path: ./src
+          fail-on: high
+          plain: true
 ```
 
-**Inputs:** `path` (directory to scan, default `.`) and `verbose` (`true` / `false`).
+Common inputs:
+
+| Input | Default | Description |
+| --- | --- | --- |
+| `path` | `.` | Directory to scan |
+| `version` | `latest` | npm package version to run |
+| `format` | `console` | `console`, `json`, or `sarif` |
+| `output` | _(empty)_ | Output file path |
+| `fail-on` | `low` | Fail when findings are at least this severity |
+| `min-severity` | `low` | Hide findings below this severity |
+| `no-fail` | `false` | Exit `0` even when findings exist |
+| `no-ai` | `false` | Force pattern-only scanning |
+| `plain` | `false` | Compact console output |
+| `show-secrets` | `false` | Print unredacted snippets |
+| `exclude` | _(empty)_ | Newline-separated glob patterns |
 
 ## GitHub code scanning (SARIF)
 
@@ -38,7 +54,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - run: npx kafkacode scan ./src --format sarif --output kafkacode.sarif --no-fail
+      - uses: nikhil-kapu/kafkacode@v1
+        with:
+          path: ./src
+          format: sarif
+          output: kafkacode.sarif
+          no-fail: true
       - uses: github/codeql-action/upload-sarif@v3
         with:
           sarif_file: kafkacode.sarif
@@ -53,6 +74,13 @@ A non-zero exit fails the step, so a bare command is enough:
 
 ```bash
 npx kafkacode scan ./src
+```
+
+For existing codebases, create a baseline and fail only on new findings:
+
+```bash
+npx kafkacode scan ./src --update-baseline .kafkacode-baseline.json
+npx kafkacode scan ./src --baseline .kafkacode-baseline.json
 ```
 
 ## Pre-commit hook

@@ -1,6 +1,6 @@
 {
   "name": "kafkacode",
-  "version": "1.4.0",
+  "version": "1.5.0",
   "description": "Open-source, local-first privacy code scanner for PII leaks, hardcoded secrets, GDPR/CCPA compliance, SARIF, and CI/CD",
   "main": "dist/index.js",
   "bin": {

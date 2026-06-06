@@ -58,6 +58,8 @@ kafkacode scan ./src --verbose
 - 🏷️ **Grade badge** — drop your score into your README (`--badge`)
 - ⚡ **Fast & offline** — pattern scanning needs no network
 - 📄 **SARIF & JSON output** — integrate with GitHub code scanning and security dashboards
+- 🧰 **Config, ignores & baselines** — adopt safely in existing repositories
+- 🔒 **Redacted output by default** — prevent secrets from leaking into logs
 - 🌐 **7 languages** — Python, JavaScript, TypeScript, Java, Go, Ruby, PHP
 - 🚀 **CI/CD ready** — clean exit codes + a one-line GitHub Action
 
@@ -136,6 +138,12 @@ jobs:
 ```bash
 # Exits non-zero when issues are found, failing the build
 npx kafkacode scan ./src
+
+# Fail only on high or critical findings
+npx kafkacode scan ./src --fail-on high
+
+# Generate SARIF for GitHub code scanning
+npx kafkacode scan ./src --format sarif --output kafkacode.sarif --no-fail
 ```
 
 ## 🔍 What it detects
@@ -143,7 +151,7 @@ npx kafkacode scan ./src
 | Severity | Examples |
 | -------- | -------- |
 | 🚨 **Critical** | AWS keys, Stripe live keys, private keys |
-| 🔥 **High** | `password=`, `api_key=`, `token=` and other secrets in assignments |
+| 🔥 **High** | JWTs, `password=`, `api_key=`, `token=` and other secrets in assignments |
 | ⚠️ **Medium** | Emails, phone numbers, high-entropy strings |
 | 🔵 **Low** | IP addresses |
 
@@ -207,9 +215,12 @@ deep secret scanners rather than replacing them.
 
 - [x] **Bring-your-own-key AI** — call Groq / OpenAI-compatible providers directly
 - [x] **`--json` & SARIF output** — SARIF integrates with the GitHub Security tab
-- [ ] Config file &amp; `.kafkacodeignore`
-- [ ] Baseline file to adopt on existing codebases
-- [ ] More file types (`.env`, YAML, Terraform, Dockerfiles)
+- [x] Config file &amp; `.kafkacodeignore`
+- [x] Baseline file to adopt on existing codebases
+- [x] More file types (`.env`, YAML, Terraform, Dockerfiles)
+- [x] Redacted snippets by default, with `--show-secrets` opt-in
+- [ ] Provider validation for selected secret types
+- [ ] More language-aware privacy rules
 
 Ideas and PRs welcome — see [CONTRIBUTING.md](CONTRIBUTING.md).
 

@@ -1,6 +1,9 @@
 #!/usr/bin/env node
 
 const { execSync } = require('child_process');
+const fs = require('fs');
+const os = require('os');
+const path = require('path');
 const PatternScanner = require('../src/PatternScanner');
 
 // Keep tests hermetic: never call a real AI provider, even if a key is set locally.
@@ -26,10 +29,10 @@ try {
 // Test 2: PatternScanner detects a hardcoded secret and PII (offline, deterministic)
 try {
     const scanner = new PatternScanner();
-    const sample = 'const awsKey = "AKIAIOSFODNN7EXAMPLE";\nconst email = "jane.doe@example.com";';
+    const sample = 'const awsKey = "AKIA1234567890ABCDEF";\nconst email = "jane.doe@example.com";';
     const findings = scanner.scanContent('sample.js', sample);
-    const foundAws = findings.some(f => f.description.includes('AWS Access Key'));
-    const foundEmail = findings.some(f => f.description.includes('Email'));
+    const foundAws = findings.some(f => f.rule_id === 'KC_SECRET_AWS_ACCESS_KEY' && f.confidence === 'High');
+    const foundEmail = findings.some(f => f.rule_id === 'KC_PII_EMAIL' && f.confidence === 'High');
     if (foundAws && foundEmail) {
         console.log('✅ Test 2: PatternScanner detects secrets and PII');
     } else {
@@ -97,10 +100,15 @@ try {
 try {
     const out = execSync('node src/cli.js scan test/fixtures --format json --no-fail', { encoding: 'utf8' });
     const parsed = JSON.parse(out);
-    if (parsed.tool === 'kafkacode' && parsed.summary && parsed.summary.grade && Array.isArray(parsed.findings)) {
+    const hasRuleIds = parsed.findings.every(f => f.ruleId);
+    const hasFingerprints = parsed.findings.every(f => f.fingerprint);
+    const redacted = JSON.stringify(parsed).includes('[REDACTED]') &&
+        !JSON.stringify(parsed).includes('jane.doe@example.com') &&
+        !JSON.stringify(parsed).includes('AKIA1234567890ABCDEF');
+    if (parsed.tool === 'kafkacode' && parsed.summary && parsed.summary.grade && Array.isArray(parsed.findings) && hasRuleIds && hasFingerprints && redacted) {
         console.log('✅ Test 6: JSON output is valid');
     } else {
-        console.log('❌ Test 6: unexpected JSON shape');
+        console.log('❌ Test 6: unexpected JSON shape or redaction failure');
         process.exit(1);
     }
 } catch (error) {
@@ -113,7 +121,8 @@ try {
     const out = execSync('node src/cli.js scan test/fixtures --format sarif --no-fail', { encoding: 'utf8' });
     const sarif = JSON.parse(out);
     const driver = sarif.runs && sarif.runs[0] && sarif.runs[0].tool.driver;
-    if (sarif.version === '2.1.0' && driver && driver.name === 'KafkaCode' && Array.isArray(sarif.runs[0].results)) {
+    const hasFingerprints = sarif.runs[0].results.every(result => result.partialFingerprints && result.partialFingerprints.kafkacode);
+    if (sarif.version === '2.1.0' && driver && driver.name === 'KafkaCode' && Array.isArray(sarif.runs[0].results) && hasFingerprints) {
         console.log('✅ Test 7: SARIF output is valid');
     } else {
         console.log('❌ Test 7: unexpected SARIF shape');
@@ -121,6 +130,101 @@ try {
     }
 } catch (error) {
     console.log('❌ Test 7: SARIF output failed:', error.message);
+    process.exit(1);
+}
+
+// Test 8: --show-secrets opt-in exposes full snippets
+try {
+    const out = execSync('node src/cli.js scan test/fixtures --format json --show-secrets --no-fail', { encoding: 'utf8' });
+    const parsed = JSON.parse(out);
+    if (JSON.stringify(parsed).includes('jane.doe@example.com') && JSON.stringify(parsed).includes('AKIA1234567890ABCDEF')) {
+        console.log('✅ Test 8: --show-secrets exposes full snippets');
+    } else {
+        console.log('❌ Test 8: expected unredacted snippets with --show-secrets');
+        process.exit(1);
+    }
+} catch (error) {
+    console.log('❌ Test 8: --show-secrets failed:', error.message);
+    process.exit(1);
+}
+
+// Test 9: config exclude suppresses matching files
+try {
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'kafkacode-config-'));
+    fs.writeFileSync(path.join(tmp, 'secret.js'), 'const awsKey = "AKIA1234567890ABCDEF";\n');
+    fs.writeFileSync(path.join(tmp, 'safe.js'), 'const ok = true;\n');
+    const configPath = path.join(tmp, 'kafkacode.config.json');
+    fs.writeFileSync(configPath, JSON.stringify({ exclude: ['secret.js'] }));
+    const out = execSync(`node src/cli.js scan ${tmp} --format json --config ${configPath} --no-fail`, { encoding: 'utf8' });
+    const parsed = JSON.parse(out);
+    if (parsed.summary.totalIssues === 0) {
+        console.log('✅ Test 9: config exclude suppresses files');
+    } else {
+        console.log('❌ Test 9: expected excluded fixture to produce no findings');
+        process.exit(1);
+    }
+} catch (error) {
+    console.log('❌ Test 9: config exclude failed:', error.message);
+    process.exit(1);
+}
+
+// Test 10: baseline update and filtering suppress existing findings
+try {
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'kafkacode-baseline-'));
+    const baselinePath = path.join(tmp, 'baseline.json');
+    execSync(`node src/cli.js scan test/fixtures --update-baseline ${baselinePath}`, { encoding: 'utf8' });
+    const out = execSync(`node src/cli.js scan test/fixtures --format json --baseline ${baselinePath} --no-fail`, { encoding: 'utf8' });
+    const parsed = JSON.parse(out);
+    if (parsed.summary.totalIssues === 0) {
+        console.log('✅ Test 10: baseline filters existing findings');
+    } else {
+        console.log('❌ Test 10: expected baseline to filter fixture findings');
+        process.exit(1);
+    }
+} catch (error) {
+    console.log('❌ Test 10: baseline failed:', error.message);
+    process.exit(1);
+}
+
+// Test 11: severity gates control reporting and failure behavior
+try {
+    const out = execSync('node src/cli.js scan test/fixtures --format json --min-severity critical --fail-on critical', { encoding: 'utf8' });
+    console.log('❌ Test 11: expected critical finding to fail the scan');
+    process.exit(1);
+} catch (error) {
+    const stdout = error.stdout || '';
+    const parsed = JSON.parse(stdout);
+    if (parsed.summary.totalIssues === 1 && parsed.findings[0].severity === 'Critical') {
+        const noFail = execSync('node src/cli.js scan test/fixtures --format json --min-severity critical --fail-on high --no-fail', { encoding: 'utf8' });
+        const noFailParsed = JSON.parse(noFail);
+        if (noFailParsed.summary.totalIssues === 1) {
+            console.log('✅ Test 11: severity gates control output and failure');
+        } else {
+            console.log('❌ Test 11: unexpected --no-fail severity output');
+            process.exit(1);
+        }
+    } else {
+        console.log('❌ Test 11: unexpected severity gate output');
+        process.exit(1);
+    }
+}
+
+// Test 12: scanner includes config-style files where secrets often live
+try {
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'kafkacode-files-'));
+    fs.writeFileSync(path.join(tmp, '.env'), 'SENDGRID_API_KEY=SG.abcdefghijklmnop.qrstuvwxyz1234567890\n');
+    fs.writeFileSync(path.join(tmp, 'deployment.yaml'), 'DATABASE_URL: postgres://user:pass@db.internal:5432/app\n');
+    const out = execSync(`node src/cli.js scan ${tmp} --format json --no-fail`, { encoding: 'utf8' });
+    const parsed = JSON.parse(out);
+    const ruleIds = parsed.findings.map(f => f.ruleId);
+    if (ruleIds.includes('KC_SECRET_SENDGRID_KEY') && ruleIds.includes('KC_SECRET_DATABASE_URL')) {
+        console.log('✅ Test 12: config-style files are scanned');
+    } else {
+        console.log('❌ Test 12: expected .env and YAML findings, got:', ruleIds);
+        process.exit(1);
+    }
+} catch (error) {
+    console.log('❌ Test 12: config-style file scanning failed:', error.message);
     process.exit(1);
 }
 

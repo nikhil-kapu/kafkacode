@@ -3,19 +3,30 @@ const path = require('path');
 const { minimatch } = require('minimatch');
 
 class FileScanner {
-    constructor(rootDir) {
+    constructor(rootDir, options = {}) {
         this.rootDir = path.resolve(rootDir);
-        this.supportedExtensions = new Set(['.py', '.js', '.ts', '.java', '.go', '.rb', '.php']);
+        this.supportedExtensions = new Set([
+            '.py', '.js', '.jsx', '.ts', '.tsx', '.java', '.go', '.rb', '.php',
+            '.env', '.json', '.yaml', '.yml', '.toml', '.ini', '.properties',
+            '.xml', '.tf', '.tfvars', '.dockerfile', '.md', '.sh'
+        ]);
+        this.supportedFilenames = new Set([
+            '.env', '.env.example', '.env.local', '.env.development', '.env.production',
+            'Dockerfile', 'dockerfile', 'Containerfile', 'Makefile'
+        ]);
         this.ignoreDirs = new Set([
             '.git', 'node_modules', 'venv', '__pycache__', '.venv', 'env',
             'build', 'dist', 'target', 'out', '.next', '.nuxt', 'vendor',
-            'coverage', '.coverage', '.pytest_cache', '.mypy_cache'
+            'coverage', '.coverage', '.pytest_cache', '.mypy_cache',
+            '.vitepress', '.cache', '.turbo'
         ]);
-        this.gitignorePatterns = this._loadGitignore();
+        this.extraIgnorePatterns = options.exclude || [];
+        this.gitignorePatterns = this._loadIgnoreFile('.gitignore');
+        this.kafkaCodeIgnorePatterns = this._loadIgnoreFile('.kafkacodeignore');
     }
 
-    _loadGitignore() {
-        const gitignorePath = path.join(this.rootDir, '.gitignore');
+    _loadIgnoreFile(fileName) {
+        const gitignorePath = path.join(this.rootDir, fileName);
         const patterns = [];
 
         if (fs.existsSync(gitignorePath)) {
@@ -48,9 +59,16 @@ class FileScanner {
             }
         }
 
-        // Check gitignore patterns
-        for (const pattern of this.gitignorePatterns) {
-            if (minimatch(relativePath, pattern) || minimatch(path.basename(filePath), pattern)) {
+        // Check ignore patterns
+        const ignorePatterns = [
+            ...this.gitignorePatterns,
+            ...this.kafkaCodeIgnorePatterns,
+            ...this.extraIgnorePatterns
+        ];
+        for (const pattern of ignorePatterns) {
+            if (minimatch(relativePath, pattern, { dot: true }) ||
+                minimatch(path.basename(filePath), pattern, { dot: true }) ||
+                minimatch(relativePath, `${pattern}/**`, { dot: true })) {
                 return true;
             }
         }
@@ -75,7 +93,7 @@ class FileScanner {
                     files.push(...this._scanDirectory(fullPath));
                 } else if (entry.isFile()) {
                     const ext = path.extname(entry.name);
-                    if (this.supportedExtensions.has(ext)) {
+                    if (this.supportedExtensions.has(ext) || this.supportedFilenames.has(entry.name)) {
                         files.push(fullPath);
                     }
                 }

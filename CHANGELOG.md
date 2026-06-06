@@ -2,6 +2,21 @@
 
 All notable changes to this project are documented in this file.
 
+## [1.5.0] - 2026-06-06
+
+### Added
+- Config file support via `kafkacode.config.json`, `.kafkacoderc`, and `.kafkacoderc.json`.
+- `.kafkacodeignore`, repeatable `--exclude`, `--baseline`, and `--update-baseline`.
+- Severity controls with `--min-severity` and `--fail-on`.
+- Compact CI output via `--plain`.
+- Redacted findings by default, with `--show-secrets` for explicit local opt-in.
+- Stable rule IDs, confidence metadata, and SARIF fingerprints.
+- More file coverage: `.env`, JSON, YAML, TOML, INI, properties, XML, Terraform, Dockerfiles, Markdown, and shell scripts.
+- Expanded secret rules for GitHub, OpenAI, Anthropic, Google, Slack, SendGrid, npm, JWTs, and database URLs.
+
+### Changed
+- GitHub Action inputs now expose output format, failure thresholds, excludes, redaction, package version, and compact output.
+
 ## [1.4.0] - 2026-06-05
 
 ### Added

@@ -1,7 +1,7 @@
 // Sample file used by the KafkaCode test suite.
 // The "secrets" below are intentionally fake / well-known example values.
 
-const awsKey = "AKIAIOSFODNN7EXAMPLE";
+const awsKey = "AKIA1234567890ABCDEF";
 const userEmail = "jane.doe@example.com";
 
 function saveUser(user) {
